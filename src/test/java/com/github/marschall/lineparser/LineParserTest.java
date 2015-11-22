@@ -43,7 +43,7 @@ public class LineParserTest {
   }
 
   @Test
-  public void equalContent() throws IOException {
+  public void emptyLines() throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
     try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
       writer.append(this.newline);
@@ -60,6 +60,46 @@ public class LineParserTest {
       writer.append("d");
 
       writer.append(this.newline);
+    }
+    try {
+      List<String> expected = readLinesBuffered(tempFile, cs);
+      List<String> acutal = readLinesMapped(tempFile, cs);
+
+      assertEquals(expected, acutal);
+
+    } finally {
+      Files.delete(tempFile);
+    }
+  }
+
+  @Test
+  public void noEmptyLines() throws IOException {
+    Path tempFile = Files.createTempFile("LineParserTest", null);
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+      writer.append("a");
+      writer.append(this.newline);
+      writer.append("bc");
+      writer.append(this.newline);
+      writer.append("d");
+    }
+    try {
+      List<String> expected = readLinesBuffered(tempFile, cs);
+      List<String> acutal = readLinesMapped(tempFile, cs);
+
+      assertEquals(expected, acutal);
+
+    } finally {
+      Files.delete(tempFile);
+    }
+  }
+
+  @Test
+  public void longLine() throws IOException {
+    Path tempFile = Files.createTempFile("LineParserTest", null);
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+      for (int i = 0; i < 8192; i++) {
+        writer.append("a");
+      }
     }
     try {
       List<String> expected = readLinesBuffered(tempFile, cs);

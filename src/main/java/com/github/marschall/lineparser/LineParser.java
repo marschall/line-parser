@@ -69,6 +69,13 @@ public final class LineParser {
           }
         }
 
+        if (start < size) {
+          buffer.position(start);
+          charBuffer = decode(buffer.slice(), charBuffer, decoder);
+          Line line = new Line(start, (int) (size - start), charBuffer);
+          consumer.accept(line);
+        }
+
       } finally {
         unmap(buffer);
       }
@@ -92,10 +99,14 @@ public final class LineParser {
   private static void unmap(MappedByteBuffer buffer) {
     try {
       Method cleanerMethod = buffer.getClass().getMethod("cleaner");
-      cleanerMethod.setAccessible(true);
+      if (!cleanerMethod.isAccessible()) {
+        cleanerMethod.setAccessible(true);
+      }
       Object cleaner = cleanerMethod.invoke(buffer);
       Method cleanMethod = cleaner.getClass().getMethod("clean");
-      cleanerMethod.setAccessible(true);
+      if (!cleanMethod.isAccessible()) {
+        cleanMethod.setAccessible(true);
+      }
       cleanMethod.invoke(cleaner);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("could not unmap buffer", e);
