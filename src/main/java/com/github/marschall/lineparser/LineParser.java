@@ -79,11 +79,12 @@ public final class LineParser {
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             lineCallback.accept(line);
+
             buffer.limit(buffer.capacity());
-            int newineLength = newline.length;
-            buffer.position(i + newineLength);
-            start = i + newineLength;
-            i += newineLength -1;
+            start = i + newline.length;
+            buffer.position(start);
+            i = start -1; // will get incremented to start
+
           } else if (value == lf[0]) {
             for (int j = 1; j < lf.length; j++) {
               if (buffer.get() != lf[j]) {
@@ -96,9 +97,9 @@ public final class LineParser {
             Line line = new Line(start, i - start, charBuffer);
             lineCallback.accept(line);
             buffer.limit(buffer.capacity());
-            buffer.position(i + lf.length);
             start = i + lf.length;
-            i += lf.length -1;
+            buffer.position(start);
+            i = start -1; // will get incremented to start
           }
         }
 
