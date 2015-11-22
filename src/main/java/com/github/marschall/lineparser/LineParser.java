@@ -2,6 +2,7 @@ package com.github.marschall.lineparser;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
@@ -43,10 +44,13 @@ public final class LineParser {
               }
             }
             buffer.position(start).limit(i);
-            charBuffer = decode(buffer, charBuffer, decoder);
+            charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             consumer.accept(line);
+            buffer.limit(buffer.capacity());
             buffer.position(i + crlf.length);
+            start = i + crlf.length;
+            i += crlf.length -1;
           } else if (value == lf[0]) {
             for (int j = 1; j < lf.length; j++) {
               if (buffer.get() != lf[j]) {
@@ -55,10 +59,13 @@ public final class LineParser {
               }
             }
             buffer.position(start).limit(i);
-            charBuffer = decode(buffer, charBuffer, decoder);
+            charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             consumer.accept(line);
+            buffer.limit(buffer.capacity());
             buffer.position(i + lf.length);
+            start = i + lf.length;
+            i += lf.length -1;
           }
         }
 
@@ -73,7 +80,7 @@ public final class LineParser {
     in.rewind();
     out.rewind();
     CoderResult result = decoder.decode(in, out, true);
-    if (result.isUnderflow()) {
+    if (result.isOverflow()) {
       int newCapacity = out.capacity() * 2;
       return decode(in, CharBuffer.allocate(newCapacity), decoder);
     } else {
@@ -84,8 +91,12 @@ public final class LineParser {
 
   private static void unmap(MappedByteBuffer buffer) {
     try {
-      Object cleaner = buffer.getClass().getMethod("cleaner").invoke(buffer);
-      cleaner.getClass().getMethod("clean").invoke(cleaner);
+      Method cleanerMethod = buffer.getClass().getMethod("cleaner");
+      cleanerMethod.setAccessible(true);
+      Object cleaner = cleanerMethod.invoke(buffer);
+      Method cleanMethod = cleaner.getClass().getMethod("clean");
+      cleanerMethod.setAccessible(true);
+      cleanMethod.invoke(cleaner);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("could not unmap buffer", e);
     }

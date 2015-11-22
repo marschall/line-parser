@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -35,10 +36,13 @@ public class LineParserTest {
                 { StandardCharsets.UTF_8, "\r\n" },
                 { StandardCharsets.UTF_8, "\n" },
                 { StandardCharsets.ISO_8859_1, "\r\n" },
-                { StandardCharsets.ISO_8859_1, "\n" }
+                { StandardCharsets.ISO_8859_1, "\n" },
+                { StandardCharsets.UTF_16, "\r\n" },
+                { StandardCharsets.UTF_16, "\n" }
               });
   }
 
+  @Test
   public void equalContent() throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
     try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
@@ -82,7 +86,8 @@ public class LineParserTest {
   private static List<String> readLinesMapped(Path path, Charset cs) throws IOException {
     List<String> lines = new ArrayList<>();
     LineParser parser = new LineParser();
-    parser.forEach(path, cs, line -> lines.add(line.getContent().toString()));
+    parser.forEach(path, cs, line ->
+      lines.add(line.getContent().toString()));
     return lines;
   }
 
