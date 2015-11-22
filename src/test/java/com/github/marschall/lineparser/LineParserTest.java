@@ -37,8 +37,8 @@ public class LineParserTest {
                 { StandardCharsets.UTF_8, "\n" },
                 { StandardCharsets.ISO_8859_1, "\r\n" },
                 { StandardCharsets.ISO_8859_1, "\n" },
-                { StandardCharsets.UTF_16, "\r\n" },
-                { StandardCharsets.UTF_16, "\n" }
+                { StandardCharsets.UTF_16LE, "\r\n" },
+                { StandardCharsets.UTF_16LE, "\n" }
               });
   }
 

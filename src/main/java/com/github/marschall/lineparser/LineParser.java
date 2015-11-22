@@ -14,24 +14,46 @@ import java.nio.charset.CoderResult;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 
+/**
+ * Parses a file into multiple lines.
+ *
+ * <p>Intended for cases where:</p>
+ * <ul>
+ *  <li>the start position in the file for every line is required</li>
+ *  <li>the length in bytes for every line is required</li>
+ *  <li>only a few character of every line is required</li>
+ * </ul>
+ *
+ * @see Line
+ */
 public final class LineParser {
 
   private static final byte[] CR_LF = {'\r', '\n'};
 
   private static final byte[] LF = {'\n'};
 
-  public void forEach(Path path, Charset charset, Consumer<Line> consumer) throws IOException {
+  private static final String BOM = "\uFEFF";
+
+  /**
+   * Internal iterator over every line in a file.
+   *
+   * @param path the file to parse
+   * @param cs the character set to use
+   * @param lineCallback callback executed for every line
+   * @throws IOException if an exception happens when reading
+   */
+  public void forEach(Path path, Charset cs, Consumer<Line> lineCallback) throws IOException {
     try (FileInputStream stream = new FileInputStream(path.toFile());
             FileChannel channel = stream.getChannel()) {
       long size = channel.size();
       MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, size);
       try {
         CharBuffer charBuffer = CharBuffer.allocate(2048);
-        CharsetDecoder decoder = charset.newDecoder();
+        CharsetDecoder decoder = cs.newDecoder();
 
         int start = 0;
-        byte[] lf = "\n".getBytes(charset);
-        byte[] crlf = "\r\n".getBytes(charset);
+        byte[] lf = "\n".getBytes(cs);
+        byte[] crlf = "\r\n".getBytes(cs);
 
         for (int i = start; i < size; ++i) {
           byte value = buffer.get();
@@ -46,7 +68,7 @@ public final class LineParser {
             buffer.position(start).limit(i);
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
-            consumer.accept(line);
+            lineCallback.accept(line);
             buffer.limit(buffer.capacity());
             buffer.position(i + crlf.length);
             start = i + crlf.length;
@@ -61,7 +83,7 @@ public final class LineParser {
             buffer.position(start).limit(i);
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
-            consumer.accept(line);
+            lineCallback.accept(line);
             buffer.limit(buffer.capacity());
             buffer.position(i + lf.length);
             start = i + lf.length;
@@ -73,7 +95,7 @@ public final class LineParser {
           buffer.position(start);
           charBuffer = decode(buffer.slice(), charBuffer, decoder);
           Line line = new Line(start, (int) (size - start), charBuffer);
-          consumer.accept(line);
+          lineCallback.accept(line);
         }
 
       } finally {
