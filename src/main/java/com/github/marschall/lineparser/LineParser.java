@@ -32,8 +32,6 @@ public final class LineParser {
 
   private static final byte[] LF = {'\n'};
 
-  private static final String BOM = "\uFEFF";
-
   /**
    * Internal iterator over every line in a file.
    *
@@ -53,26 +51,39 @@ public final class LineParser {
 
         int start = 0;
         byte[] lf = "\n".getBytes(cs);
+        byte[] cr = "\r".getBytes(cs);
         byte[] crlf = "\r\n".getBytes(cs);
 
         for (int i = start; i < size; ++i) {
           byte value = buffer.get();
 
-          if (value == crlf[0] && crlf.length - 1 <= buffer.remaining()) {
-            for (int j = 1; j < crlf.length; j++) {
-              if (buffer.get() != crlf[j]) {
+          if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
+            for (int j = 1; j < cr.length; j++) {
+              if (buffer.get() != cr[j]) {
                 buffer.position(i + 1);
                 break;
               }
             }
+
+            byte[] newline = cr;
+            crlftest: if (lf.length <= buffer.remaining()) {
+              for (int j = 0; j < lf.length; j++) {
+                if (buffer.get() != lf[j]) {
+                  break crlftest;
+                }
+              }
+              newline = crlf;
+            }
+
             buffer.position(start).limit(i);
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             lineCallback.accept(line);
             buffer.limit(buffer.capacity());
-            buffer.position(i + crlf.length);
-            start = i + crlf.length;
-            i += crlf.length -1;
+            int newineLength = newline.length;
+            buffer.position(i + newineLength);
+            start = i + newineLength;
+            i += newineLength -1;
           } else if (value == lf[0]) {
             for (int j = 1; j < lf.length; j++) {
               if (buffer.get() != lf[j]) {
