@@ -20,7 +20,7 @@ public final class Line {
     return length;
   }
 
-  public CharSequence getLine() {
+  public CharSequence getContent() {
     return line;
   }
 
