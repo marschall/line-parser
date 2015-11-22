@@ -30,6 +30,8 @@ public final class LineParser {
 
   private static final byte[] CR_LF = {'\r', '\n'};
 
+  private static final byte[] CR = {'\r'};
+
   private static final byte[] LF = {'\n'};
 
   /**
