@@ -19,8 +19,8 @@ import java.util.function.Consumer;
  *
  * <p>Intended for cases where:</p>
  * <ul>
- *  <li>the start position in the file for every line is required</li>
- *  <li>the length in bytes for every line is required</li>
+ *  <li>the start position in the file of a line is required</li>
+ *  <li>the length in bytes of a line is required</li>
  *  <li>only a few character of every line is required</li>
  * </ul>
  *
