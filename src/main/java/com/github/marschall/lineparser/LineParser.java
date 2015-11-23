@@ -34,6 +34,16 @@ public final class LineParser {
 
   private static final byte[] LF = {'\n'};
 
+  private final int maxMapSize;
+
+  public LineParser() {
+    this(Integer.MAX_VALUE);
+  }
+
+  LineParser(int maxBufferSize) {
+    this.maxMapSize = maxBufferSize;
+  }
+
   /**
    * Internal iterator over every line in a file.
    *
@@ -45,8 +55,9 @@ public final class LineParser {
   public void forEach(Path path, Charset cs, Consumer<Line> lineCallback) throws IOException {
     try (FileInputStream stream = new FileInputStream(path.toFile());
             FileChannel channel = stream.getChannel()) {
-      long size = channel.size();
-      MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, size);
+      long fileSize = channel.size();
+      int mapSize = (int) Math.min(fileSize, maxMapSize);
+      MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, mapSize);
       try {
         CharBuffer charBuffer = CharBuffer.allocate(2048);
         CharsetDecoder decoder = cs.newDecoder();
@@ -56,14 +67,16 @@ public final class LineParser {
         byte[] cr = "\r".getBytes(cs);
         byte[] crlf = "\r\n".getBytes(cs);
 
-        for (int i = start; i < size; ++i) {
+        int i = start;
+        scanloop: while (i < mapSize) {
           byte value = buffer.get();
 
           if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
             for (int j = 1; j < cr.length; j++) {
               if (buffer.get() != cr[j]) {
                 buffer.position(i + 1);
-                break;
+                i += 1;
+                continue scanloop;
               }
             }
 
@@ -77,38 +90,53 @@ public final class LineParser {
               newline = crlf;
             }
 
+            // read the current line into a CharSequence
+            // create a Line object
+            // call the callback
             buffer.position(start).limit(i);
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             lineCallback.accept(line);
 
+            // fix up the buffer and loop variable for the next iteration
             buffer.limit(buffer.capacity());
             start = i + newline.length;
             buffer.position(start);
-            i = start -1; // will get incremented to start
+            i = start;
 
           } else if (value == lf[0]) {
             for (int j = 1; j < lf.length; j++) {
               if (buffer.get() != lf[j]) {
                 buffer.position(i + 1);
-                break;
+                i += 1;
+                continue scanloop;
               }
             }
+
+            // read the current line into a CharSequence
+            // create a Line object
+            // call the callback
             buffer.position(start).limit(i);
             charBuffer = decode(buffer.slice(), charBuffer, decoder);
             Line line = new Line(start, i - start, charBuffer);
             lineCallback.accept(line);
+
+            // fix up the buffer and loop variable for the next iteration
             buffer.limit(buffer.capacity());
             start = i + lf.length;
             buffer.position(start);
-            i = start -1; // will get incremented to start
+            i = start;
+          } else {
+            i += 1;
           }
+
         }
 
-        if (start < size) {
+        // if the last line didn't end in a newline read it now
+        if (start < mapSize) {
           buffer.position(start);
           charBuffer = decode(buffer.slice(), charBuffer, decoder);
-          Line line = new Line(start, (int) (size - start), charBuffer);
+          Line line = new Line(start, mapSize - start, charBuffer);
           lineCallback.accept(line);
         }
 
