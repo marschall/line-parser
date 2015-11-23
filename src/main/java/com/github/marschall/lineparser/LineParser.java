@@ -72,8 +72,12 @@ public final class LineParser {
           byte value = buffer.get();
 
           if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
+            // input starts with the first byte of a cr, but cr may be multiple bytes
+            // check if the input starts with all bytes of a cr
             for (int j = 1; j < cr.length; j++) {
               if (buffer.get() != cr[j]) {
+                // wasn't a cr after all
+                // the the buffer state and loop variable
                 buffer.position(i + 1);
                 i += 1;
                 continue scanloop;
@@ -81,9 +85,14 @@ public final class LineParser {
             }
 
             byte[] newline = cr;
+            // check if lf follows the cr
             crlftest: if (lf.length <= buffer.remaining()) {
               for (int j = 0; j < lf.length; j++) {
                 if (buffer.get() != lf[j]) {
+                  // not a lf
+                  // be don't need to fix the buffer state here
+                  // having the information that the newline is just a cr is enough
+                  // to make the read and fix code work later
                   break crlftest;
                 }
               }
@@ -105,8 +114,12 @@ public final class LineParser {
             i = start;
 
           } else if (value == lf[0]) {
+            // input starts with the first byte of a lf, but lf may be multiple bytes
+            // check if the input starts with all bytes of a lf
             for (int j = 1; j < lf.length; j++) {
               if (buffer.get() != lf[j]) {
+                // wasn't a lf after all
+                // the the buffer state and loop variable
                 buffer.position(i + 1);
                 i += 1;
                 continue scanloop;
