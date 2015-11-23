@@ -1,7 +1,8 @@
 package com.github.marschall.lineparser;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 /**
  * {@link CharSequence} for Latin-1 compatible input that needs no decoding.
@@ -20,11 +21,11 @@ final class ByteBufferCharSequence implements CharSequence {
       byte[] array = this.buffer.array();
       int offset = this.buffer.arrayOffset();
       int length = this.buffer.capacity();
-      return new String(array, offset, length, StandardCharsets.ISO_8859_1);
+      return new String(array, offset, length, ISO_8859_1);
     } else {
       byte[] array = new byte[this.buffer.capacity()];
       this.buffer.get(array);
-      return new String(array, StandardCharsets.ISO_8859_1);
+      return new String(array, ISO_8859_1);
     }
   }
 
@@ -40,7 +41,7 @@ final class ByteBufferCharSequence implements CharSequence {
 
   @Override
   public CharSequence subSequence(int start, int end) {
-    this.buffer.position(start).limit(end - start);
+    this.buffer.position(start).limit(end);
     ByteBufferCharSequence subSequence = new ByteBufferCharSequence(buffer.slice());
     this.buffer.position(0).limit(this.buffer.capacity());
     return subSequence;
