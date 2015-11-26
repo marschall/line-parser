@@ -18,5 +18,6 @@ In these cases it can be more efficient than `BufferedReader` because:
 Limitations
 -----------
 
+ * doesn't handle files larger than 2 GB
  * doesn't handle file encodings with a BOM
 
