@@ -71,15 +71,17 @@ public final class LineParser {
       byte[] lf = "\n".getBytes(cs);
       byte[] cr = "\r".getBytes(cs);
       byte[] crlf = "\r\n".getBytes(cs);
+      int crLength = cr.length;
+      int lfLength = lf.length;
 
       int mapIndex = 0;
       scanloop: while (mapIndex < mapSize) {
         byte value = buffer.get();
 
-        if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
+        if (value == cr[0] && crLength - 1 <= buffer.remaining()) {
           // input starts with the first byte of a cr, but cr may be multiple bytes
           // check if the input starts with all bytes of a cr
-          for (int j = 1; j < cr.length; j++) {
+          for (int j = 1; j < crLength; j++) {
             if (buffer.get() != cr[j]) {
               // wasn't a cr after all
               // the the buffer state and loop variable
@@ -91,8 +93,8 @@ public final class LineParser {
 
           byte[] newline = cr;
           // check if lf follows the cr
-          crlftest: if (lf.length <= buffer.remaining()) {
-            for (int j = 0; j < lf.length; j++) {
+          crlftest: if (lfLength <= buffer.remaining()) {
+            for (int j = 0; j < lfLength; j++) {
               if (buffer.get() != lf[j]) {
                 // not a lf
                 // be don't need to fix the buffer state here
@@ -104,13 +106,8 @@ public final class LineParser {
             newline = crlf;
           }
 
-          // read the current line into a CharSequence
-          // create a Line object
-          // call the callback
-          buffer.position(lineStart).limit(mapIndex);
-          charBuffer = decode(buffer.slice(), charBuffer, decoder);
-          Line line = new Line(lineStart + mapStart, mapIndex - lineStart, charBuffer);
-          lineCallback.accept(line);
+          // we found the end, read the line
+          charBuffer = readLine(lineStart, mapStart, mapIndex, buffer, charBuffer, decoder, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
           buffer.limit(buffer.capacity());
@@ -118,10 +115,10 @@ public final class LineParser {
           buffer.position(lineStart);
           mapIndex = lineStart;
 
-        } else if (value == lf[0] && lf.length - 1 <= buffer.remaining()) {
+        } else if (value == lf[0] && lfLength - 1 <= buffer.remaining()) {
           // input starts with the first byte of a lf, but lf may be multiple bytes
           // check if the input starts with all bytes of a lf
-          for (int j = 1; j < lf.length; j++) {
+          for (int j = 1; j < lfLength; j++) {
             if (buffer.get() != lf[j]) {
               // wasn't a lf after all
               // the the buffer state and loop variable
@@ -131,17 +128,12 @@ public final class LineParser {
             }
           }
 
-          // read the current line into a CharSequence
-          // create a Line object
-          // call the callback
-          buffer.position(lineStart).limit(mapIndex);
-          charBuffer = decode(buffer.slice(), charBuffer, decoder);
-          Line line = new Line(lineStart + mapStart, mapIndex - lineStart, charBuffer);
-          lineCallback.accept(line);
+          // we found the end, read the line
+          charBuffer = readLine(lineStart, mapStart, mapIndex, buffer, charBuffer, decoder, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
           buffer.limit(buffer.capacity());
-          lineStart = mapIndex + lf.length;
+          lineStart = mapIndex + lfLength;
           buffer.position(lineStart);
           mapIndex = lineStart;
         } else {
@@ -167,12 +159,26 @@ public final class LineParser {
     }
   }
 
+  private CharBuffer readLine(int lineStart, long mapStart, int mapIndex,
+          MappedByteBuffer buffer, CharBuffer charBuffer, CharsetDecoder decoder,
+          Consumer<Line> lineCallback) {
+
+    // read the current line into a CharSequence
+    // create a Line object
+    // call the callback
+    buffer.position(lineStart).limit(mapIndex);
+    CharBuffer currentBuffer = decode(buffer.slice(), charBuffer, decoder);
+    Line line = new Line(lineStart + mapStart, mapIndex - lineStart, currentBuffer);
+    lineCallback.accept(line);
+    return currentBuffer;
+  }
+
   private static CharBuffer decode(ByteBuffer in, CharBuffer out, CharsetDecoder decoder) {
     in.rewind();
-    out.rewind();
+    out.clear();
     CoderResult result = decoder.decode(in, out, true);
     if (result.isOverflow()) {
-      int newCapacity = out.capacity() * 2;
+      int newCapacity = out.capacity() * 2; // FIXME
       return decode(in, CharBuffer.allocate(newCapacity), decoder);
     } else {
       out.flip();
