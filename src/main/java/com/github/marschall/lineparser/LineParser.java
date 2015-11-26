@@ -56,107 +56,114 @@ public final class LineParser {
     try (FileInputStream stream = new FileInputStream(path.toFile());
             FileChannel channel = stream.getChannel()) {
       long fileSize = channel.size();
-      int mapSize = (int) Math.min(fileSize, maxMapSize);
-      MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, mapSize);
-      try {
-        CharBuffer charBuffer = CharBuffer.allocate(2048);
-        CharsetDecoder decoder = cs.newDecoder();
+      forEach(channel, cs, fileSize, 0L, lineCallback);
+    }
+  }
 
-        int start = 0;
-        byte[] lf = "\n".getBytes(cs);
-        byte[] cr = "\r".getBytes(cs);
-        byte[] crlf = "\r\n".getBytes(cs);
+  private void forEach(FileChannel channel, Charset cs, long fileSize, long mapStart, Consumer<Line> lineCallback) throws IOException {
+    int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
+    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    try {
+      CharBuffer charBuffer = CharBuffer.allocate(2048);
+      CharsetDecoder decoder = cs.newDecoder();
 
-        int i = start;
-        scanloop: while (i < mapSize) {
-          byte value = buffer.get();
+      int lineStart = 0; // in buffer
+      byte[] lf = "\n".getBytes(cs);
+      byte[] cr = "\r".getBytes(cs);
+      byte[] crlf = "\r\n".getBytes(cs);
 
-          if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
-            // input starts with the first byte of a cr, but cr may be multiple bytes
-            // check if the input starts with all bytes of a cr
-            for (int j = 1; j < cr.length; j++) {
-              if (buffer.get() != cr[j]) {
-                // wasn't a cr after all
-                // the the buffer state and loop variable
-                buffer.position(i + 1);
-                i += 1;
-                continue scanloop;
-              }
+      int mapIndex = 0;
+      scanloop: while (mapIndex < mapSize) {
+        byte value = buffer.get();
+
+        if (value == cr[0] && cr.length - 1 <= buffer.remaining()) {
+          // input starts with the first byte of a cr, but cr may be multiple bytes
+          // check if the input starts with all bytes of a cr
+          for (int j = 1; j < cr.length; j++) {
+            if (buffer.get() != cr[j]) {
+              // wasn't a cr after all
+              // the the buffer state and loop variable
+              buffer.position(mapIndex + 1);
+              mapIndex += 1;
+              continue scanloop;
             }
-
-            byte[] newline = cr;
-            // check if lf follows the cr
-            crlftest: if (lf.length <= buffer.remaining()) {
-              for (int j = 0; j < lf.length; j++) {
-                if (buffer.get() != lf[j]) {
-                  // not a lf
-                  // be don't need to fix the buffer state here
-                  // having the information that the newline is just a cr is enough
-                  // to make the read and fix code work later
-                  break crlftest;
-                }
-              }
-              newline = crlf;
-            }
-
-            // read the current line into a CharSequence
-            // create a Line object
-            // call the callback
-            buffer.position(start).limit(i);
-            charBuffer = decode(buffer.slice(), charBuffer, decoder);
-            Line line = new Line(start, i - start, charBuffer);
-            lineCallback.accept(line);
-
-            // fix up the buffer and loop variable for the next iteration
-            buffer.limit(buffer.capacity());
-            start = i + newline.length;
-            buffer.position(start);
-            i = start;
-
-          } else if (value == lf[0]) {
-            // input starts with the first byte of a lf, but lf may be multiple bytes
-            // check if the input starts with all bytes of a lf
-            for (int j = 1; j < lf.length; j++) {
-              if (buffer.get() != lf[j]) {
-                // wasn't a lf after all
-                // the the buffer state and loop variable
-                buffer.position(i + 1);
-                i += 1;
-                continue scanloop;
-              }
-            }
-
-            // read the current line into a CharSequence
-            // create a Line object
-            // call the callback
-            buffer.position(start).limit(i);
-            charBuffer = decode(buffer.slice(), charBuffer, decoder);
-            Line line = new Line(start, i - start, charBuffer);
-            lineCallback.accept(line);
-
-            // fix up the buffer and loop variable for the next iteration
-            buffer.limit(buffer.capacity());
-            start = i + lf.length;
-            buffer.position(start);
-            i = start;
-          } else {
-            i += 1;
           }
 
-        }
+          byte[] newline = cr;
+          // check if lf follows the cr
+          crlftest: if (lf.length <= buffer.remaining()) {
+            for (int j = 0; j < lf.length; j++) {
+              if (buffer.get() != lf[j]) {
+                // not a lf
+                // be don't need to fix the buffer state here
+                // having the information that the newline is just a cr is enough
+                // to make the read and fix code work later
+                break crlftest;
+              }
+            }
+            newline = crlf;
+          }
 
-        // if the last line didn't end in a newline read it now
-        if (start < mapSize) {
-          buffer.position(start);
+          // read the current line into a CharSequence
+          // create a Line object
+          // call the callback
+          buffer.position(lineStart).limit(mapIndex);
           charBuffer = decode(buffer.slice(), charBuffer, decoder);
-          Line line = new Line(start, mapSize - start, charBuffer);
+          Line line = new Line(lineStart + mapStart, mapIndex - lineStart, charBuffer);
           lineCallback.accept(line);
+
+          // fix up the buffer and loop variable for the next iteration
+          buffer.limit(buffer.capacity());
+          lineStart = mapIndex + newline.length;
+          buffer.position(lineStart);
+          mapIndex = lineStart;
+
+        } else if (value == lf[0] && lf.length - 1 <= buffer.remaining()) {
+          // input starts with the first byte of a lf, but lf may be multiple bytes
+          // check if the input starts with all bytes of a lf
+          for (int j = 1; j < lf.length; j++) {
+            if (buffer.get() != lf[j]) {
+              // wasn't a lf after all
+              // the the buffer state and loop variable
+              buffer.position(mapIndex + 1);
+              mapIndex += 1;
+              continue scanloop;
+            }
+          }
+
+          // read the current line into a CharSequence
+          // create a Line object
+          // call the callback
+          buffer.position(lineStart).limit(mapIndex);
+          charBuffer = decode(buffer.slice(), charBuffer, decoder);
+          Line line = new Line(lineStart + mapStart, mapIndex - lineStart, charBuffer);
+          lineCallback.accept(line);
+
+          // fix up the buffer and loop variable for the next iteration
+          buffer.limit(buffer.capacity());
+          lineStart = mapIndex + lf.length;
+          buffer.position(lineStart);
+          mapIndex = lineStart;
+        } else {
+          mapIndex += 1;
         }
 
-      } finally {
-        unmap(buffer);
       }
 
+      if (mapSize + mapStart < fileSize) {
+        // not the last mapping
+        // TODO we should unmap now
+        forEach(channel, cs, fileSize, mapStart + lineStart, lineCallback); // may result in overlapping mapping
+      } else if (lineStart < mapSize) {
+        // if the last line didn't end in a newline read it now
+        buffer.position(lineStart);
+        charBuffer = decode(buffer.slice(), charBuffer, decoder);
+        Line line = new Line(lineStart + mapStart, mapSize - lineStart, charBuffer);
+        lineCallback.accept(line);
+      }
+
+    } finally {
+      unmap(buffer);
     }
   }
 

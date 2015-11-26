@@ -97,6 +97,32 @@ public class LineParserTest {
   }
 
   @Test
+  public void fileLargerThanMapped() throws IOException {
+    int lineLength = 100;
+    int lineCount = 10;
+
+    Path tempFile = Files.createTempFile("LineParserTest", null);
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+      for (int i = 0; i < lineCount; i++) {
+        char c = (char) ('A' + i);
+        for (int j = 0; j < lineLength; j++) {
+          writer.write(c);
+        }
+        writer.append(this.newline);
+      }
+    }
+    try {
+      List<String> expected = readLinesBuffered(tempFile, cs);
+      List<String> acutal = readLinesMapped(tempFile, cs, lineLength * 4); // utf-16 is two bytes
+
+      assertEquals(expected, acutal);
+
+    } finally {
+      Files.delete(tempFile);
+    }
+  }
+
+  @Test
   public void longLine() throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
     try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
@@ -126,6 +152,13 @@ public class LineParserTest {
     return lines;
   }
 
+  private static List<String> readLinesMapped(Path path, Charset cs, int maxBufferSize) throws IOException {
+    List<String> lines = new ArrayList<>();
+    LineParser parser = new LineParser(maxBufferSize);
+    parser.forEach(path, cs, line ->
+    lines.add(line.getContent().toString()));
+    return lines;
+  }
   private static List<String> readLinesMapped(Path path, Charset cs) throws IOException {
     List<String> lines = new ArrayList<>();
     LineParser parser = new LineParser();
