@@ -159,7 +159,7 @@ public final class LineParser {
     }
   }
 
-  private CharBuffer readLine(int lineStart, long mapStart, int mapIndex,
+  private static CharBuffer readLine(int lineStart, long mapStart, int mapIndex,
           MappedByteBuffer buffer, CharBuffer charBuffer, CharsetDecoder decoder,
           Consumer<Line> lineCallback) {
 
@@ -173,12 +173,17 @@ public final class LineParser {
     return currentBuffer;
   }
 
-  private static CharBuffer decode(ByteBuffer in, CharBuffer out, CharsetDecoder decoder) {
+  static CharBuffer decode(ByteBuffer in, CharBuffer out, CharsetDecoder decoder) {
     in.rewind();
     out.clear();
     CoderResult result = decoder.decode(in, out, true);
     if (result.isOverflow()) {
-      int newCapacity = out.capacity() * 2; // FIXME
+      int newCapacity = out.capacity() * 2;
+      // double until it fits
+      // this is not ideal be there isn't a good general way to estimate the required buffer size
+      // using the line length in bytes would wasteful for UTF-16 or UTF-32
+      // we could get creative with #averageCharsPerByte and #maxCharsPerByte
+      // but would have to track if we got it wrong
       return decode(in, CharBuffer.allocate(newCapacity), decoder);
     } else {
       out.flip();
