@@ -68,7 +68,8 @@ public final class LineParser {
       scanloop: while (mapIndex < mapSize) {
         byte value = buffer.get();
 
-        if (value == cr[0] && crLength - 1 <= buffer.remaining()) {
+        // mapSize - mapIndex == buffer.remaining() + 1
+        if (value == cr[0] && crLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a cr, but cr may be multiple bytes
           // check if the input starts with all bytes of a cr
           for (int i = 1; i < crLength; i++) {
@@ -83,7 +84,7 @@ public final class LineParser {
 
           byte[] newline = cr;
           // check if lf follows the cr
-          crlftest: if (lfLength <= buffer.remaining()) {
+          crlftest: if (lfLength < (mapSize - mapIndex)) {
             for (int i = 0; i < lfLength; i++) {
               if (buffer.get() != lf[i]) {
                 // not a lf
@@ -104,7 +105,7 @@ public final class LineParser {
           buffer.position(lineStart);
           mapIndex = lineStart;
 
-        } else if (value == lf[0] && lfLength - 1 <= buffer.remaining()) {
+        } else if (value == lf[0] && lfLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a lf, but lf may be multiple bytes
           // check if the input starts with all bytes of a lf
           for (int i = 1; i < lfLength; i++) {
