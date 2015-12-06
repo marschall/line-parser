@@ -100,7 +100,6 @@ public final class LineParser {
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
-          buffer.limit(buffer.capacity());
           lineStart = mapIndex + newline.length;
           buffer.position(lineStart);
           mapIndex = lineStart;
@@ -122,7 +121,6 @@ public final class LineParser {
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
-          buffer.limit(buffer.capacity());
           lineStart = mapIndex + lfLength;
           buffer.position(lineStart);
           mapIndex = lineStart;
@@ -156,6 +154,8 @@ public final class LineParser {
     CharSequence sequence = reader.readLine(buffer.slice());
     Line line = new Line(lineStart + mapStart, mapIndex - lineStart, sequence);
     lineCallback.accept(line);
+
+    buffer.limit(buffer.capacity());
   }
 
   private static void unmap(MappedByteBuffer buffer) {
