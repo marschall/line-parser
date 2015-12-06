@@ -101,9 +101,8 @@ public final class LineParser {
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
-          lineStart = mapIndex + newline.length;
+          mapIndex =lineStart = mapIndex + newline.length;
           buffer.position(lineStart);
-          mapIndex = lineStart;
 
         } else if (value == lf[0] && lfLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a lf, but lf may be multiple bytes
@@ -122,9 +121,8 @@ public final class LineParser {
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
-          lineStart = mapIndex + lfLength;
+          mapIndex = lineStart = mapIndex + lfLength;
           buffer.position(lineStart);
-          mapIndex = lineStart;
         } else {
           mapIndex += 1;
         }
