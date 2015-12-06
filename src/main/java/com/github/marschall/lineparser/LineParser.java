@@ -13,7 +13,6 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.file.Path;
 import java.util.function.Consumer;
-import static java.nio.charset.StandardCharsets.*;
 
 /**
  * Parses a file into multiple lines.
@@ -57,16 +56,15 @@ public final class LineParser {
     try (FileInputStream stream = new FileInputStream(path.toFile());
             FileChannel channel = stream.getChannel()) {
       long fileSize = channel.size();
-      forEach(channel, cs, fileSize, 0L, lineCallback);
+      LineReader reader = LineReader.forCharset(cs);
+      forEach(channel, cs, fileSize, 0L, reader, lineCallback);
     }
   }
 
-  private void forEach(FileChannel channel, Charset cs, long fileSize, long mapStart, Consumer<Line> lineCallback) throws IOException {
+  private void forEach(FileChannel channel, Charset cs, long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
     int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
-      CharBuffer charBuffer = CharBuffer.allocate(2048);
-      CharsetDecoder decoder = cs.newDecoder();
 
       int lineStart = 0; // in buffer
       byte[] lf = "\n".getBytes(cs);
@@ -108,7 +106,7 @@ public final class LineParser {
           }
 
           // we found the end, read the line
-          charBuffer = readLine(lineStart, mapStart, mapIndex, buffer, charBuffer, decoder, lineCallback);
+          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
           buffer.limit(buffer.capacity());
@@ -130,7 +128,7 @@ public final class LineParser {
           }
 
           // we found the end, read the line
-          charBuffer = readLine(lineStart, mapStart, mapIndex, buffer, charBuffer, decoder, lineCallback);
+          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up the buffer and loop variable for the next iteration
           buffer.limit(buffer.capacity());
@@ -146,13 +144,10 @@ public final class LineParser {
       if (mapSize + mapStart < fileSize) {
         // not the last mapping
         // TODO we should unmap now
-        forEach(channel, cs, fileSize, mapStart + lineStart, lineCallback); // may result in overlapping mapping
+        forEach(channel, cs, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
-        buffer.position(lineStart);
-        charBuffer = decode(buffer.slice(), charBuffer, decoder);
-        Line line = new Line(lineStart + mapStart, mapSize - lineStart, charBuffer);
-        lineCallback.accept(line);
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
       }
 
     } finally {
@@ -160,18 +155,16 @@ public final class LineParser {
     }
   }
 
-  private static CharBuffer readLine(int lineStart, long mapStart, int mapIndex,
-          MappedByteBuffer buffer, CharBuffer charBuffer, CharsetDecoder decoder,
-          Consumer<Line> lineCallback) {
+  private static void readLine(int lineStart, long mapStart, int mapIndex,
+          MappedByteBuffer buffer, LineReader reader, Consumer<Line> lineCallback) {
 
     // read the current line into a CharSequence
     // create a Line object
     // call the callback
     buffer.position(lineStart).limit(mapIndex);
-    CharBuffer currentBuffer = decode(buffer.slice(), charBuffer, decoder);
-    Line line = new Line(lineStart + mapStart, mapIndex - lineStart, currentBuffer);
+    CharSequence sequence = reader.readLine(buffer.slice());
+    Line line = new Line(lineStart + mapStart, mapIndex - lineStart, sequence);
     lineCallback.accept(line);
-    return currentBuffer;
   }
 
   static CharBuffer decode(ByteBuffer in, CharBuffer out, CharsetDecoder decoder) {
@@ -190,10 +183,6 @@ public final class LineParser {
       out.flip();
       return out;
     }
-  }
-
-  static boolean isLatin1Compatible(Charset charset) {
-    return US_ASCII.equals(charset) || ISO_8859_1.equals(charset);
   }
 
   private static void unmap(MappedByteBuffer buffer) {

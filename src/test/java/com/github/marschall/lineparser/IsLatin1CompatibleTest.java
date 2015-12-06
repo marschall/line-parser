@@ -39,9 +39,9 @@ public class IsLatin1CompatibleTest {
   public void isLatin1Compatible() {
     Charset charset = Charset.forName(this.charsetName);
     if (this.compatible) {
-      assertTrue(LineParser.isLatin1Compatible(charset));
+      assertTrue(LineReader.isLatin1Compatible(charset));
     } else {
-      assertFalse(LineParser.isLatin1Compatible(charset));
+      assertFalse(LineReader.isLatin1Compatible(charset));
     }
   }
 
