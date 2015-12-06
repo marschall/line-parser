@@ -13,6 +13,7 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
 import java.nio.file.Path;
 import java.util.function.Consumer;
+import static java.nio.charset.StandardCharsets.*;
 
 /**
  * Parses a file into multiple lines.
@@ -189,6 +190,10 @@ public final class LineParser {
       out.flip();
       return out;
     }
+  }
+
+  static boolean isLatin1Compatible(Charset charset) {
+    return US_ASCII.equals(charset) || ISO_8859_1.equals(charset);
   }
 
   private static void unmap(MappedByteBuffer buffer) {
