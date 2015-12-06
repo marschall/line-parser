@@ -24,12 +24,6 @@ import java.util.function.Consumer;
  */
 public final class LineParser {
 
-  private static final byte[] CR_LF = {'\r', '\n'};
-
-  private static final byte[] CR = {'\r'};
-
-  private static final byte[] LF = {'\n'};
-
   private final int maxMapSize;
 
   public LineParser() {
@@ -53,19 +47,20 @@ public final class LineParser {
             FileChannel channel = stream.getChannel()) {
       long fileSize = channel.size();
       LineReader reader = LineReader.forCharset(cs);
-      forEach(channel, cs, fileSize, 0L, reader, lineCallback);
+      byte[] lf = "\n".getBytes(cs);
+      byte[] cr = "\r".getBytes(cs);
+      byte[] crlf = "\r\n".getBytes(cs);
+      forEach(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
     }
   }
 
-  private void forEach(FileChannel channel, Charset cs, long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
+  private void forEach(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf,
+          long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
     int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
       int lineStart = 0; // in buffer
-      byte[] lf = "\n".getBytes(cs);
-      byte[] cr = "\r".getBytes(cs);
-      byte[] crlf = "\r\n".getBytes(cs);
       int crLength = cr.length;
       int lfLength = lf.length;
 
@@ -140,7 +135,7 @@ public final class LineParser {
       if (mapSize + mapStart < fileSize) {
         // not the last mapping
         // TODO we should unmap now
-        forEach(channel, cs, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
+        forEach(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
