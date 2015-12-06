@@ -6,7 +6,6 @@ import static org.junit.Assert.assertSame;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.CharsetDecoder;
 
 import org.junit.Test;
 
@@ -15,7 +14,8 @@ public class LineParserDecodeTest {
   @Test
   public void decodeReuseBuffer() {
     ByteBuffer byteBuffer = ByteBuffer.wrap("aaabbbccc".getBytes(US_ASCII));
-    CharBuffer charBuffer = CharBuffer.allocate(3);
+    DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
+    CharBuffer charBuffer = reader.getOut();
 
     byteBuffer.position(0).limit(3);
     ByteBuffer aBuffer = byteBuffer.slice();
@@ -26,16 +26,16 @@ public class LineParserDecodeTest {
     byteBuffer.position(6).limit(9);
     ByteBuffer cBuffer = byteBuffer.slice();
 
-    CharsetDecoder decoder = US_ASCII.newDecoder();
-    assertSame(charBuffer, LineParser.decode(aBuffer, charBuffer, decoder));
-    assertSame(charBuffer, LineParser.decode(bBuffer, charBuffer, decoder));
-    assertSame(charBuffer, LineParser.decode(cBuffer, charBuffer, decoder));
+    assertSame(charBuffer, reader.readLine(aBuffer));
+    assertSame(charBuffer, reader.readLine(bBuffer));
+    assertSame(charBuffer, reader.readLine(cBuffer));
   }
 
   @Test
   public void decodeNewBuffer() {
     ByteBuffer byteBuffer = ByteBuffer.wrap("aaabbbbcccc".getBytes(US_ASCII));
-    CharBuffer charBuffer = CharBuffer.allocate(3);
+    DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
+    CharBuffer charBuffer = reader.getOut();
 
     byteBuffer.position(0).limit(3);
     ByteBuffer aBuffer = byteBuffer.slice();
@@ -46,11 +46,10 @@ public class LineParserDecodeTest {
     byteBuffer.position(7).limit(11);
     ByteBuffer cBuffer = byteBuffer.slice();
 
-    CharsetDecoder decoder = US_ASCII.newDecoder();
-    assertSame(charBuffer, LineParser.decode(aBuffer, charBuffer, decoder));
-    CharBuffer bResult = LineParser.decode(bBuffer, charBuffer, decoder);
+    assertSame(charBuffer, reader.readLine(aBuffer));
+    CharBuffer bResult = (CharBuffer) reader.readLine(bBuffer);
     assertNotSame(charBuffer, bResult);
-    assertSame(bResult, LineParser.decode(cBuffer, bResult, decoder));
+    assertSame(bResult, reader.readLine(cBuffer));
   }
 
 }

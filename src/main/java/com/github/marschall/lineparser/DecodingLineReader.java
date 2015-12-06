@@ -14,9 +14,13 @@ final class DecodingLineReader implements LineReader {
   private final CharsetDecoder decoder;
   private CharBuffer out;
 
-  DecodingLineReader(Charset charset) {
+  DecodingLineReader(Charset charset, int bufferSize) {
     this.decoder = charset.newDecoder();
-    this.out = CharBuffer.allocate(2048);
+    this.out = CharBuffer.allocate(bufferSize);
+  }
+
+  DecodingLineReader(Charset charset) {
+    this(charset, 2048);
   }
 
   /**

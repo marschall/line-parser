@@ -3,14 +3,10 @@ package com.github.marschall.lineparser;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CoderResult;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 
@@ -165,24 +161,6 @@ public final class LineParser {
     CharSequence sequence = reader.readLine(buffer.slice());
     Line line = new Line(lineStart + mapStart, mapIndex - lineStart, sequence);
     lineCallback.accept(line);
-  }
-
-  static CharBuffer decode(ByteBuffer in, CharBuffer out, CharsetDecoder decoder) {
-    in.rewind();
-    out.clear();
-    CoderResult result = decoder.decode(in, out, true);
-    if (result.isOverflow()) {
-      int newCapacity = out.capacity() * 2;
-      // double until it fits
-      // this is not ideal be there isn't a good general way to estimate the required buffer size
-      // using the line length in bytes would wasteful for UTF-16 or UTF-32
-      // we could get creative with #averageCharsPerByte and #maxCharsPerByte
-      // but would have to track if we got it wrong
-      return decode(in, CharBuffer.allocate(newCapacity), decoder);
-    } else {
-      out.flip();
-      return out;
-    }
   }
 
   private static void unmap(MappedByteBuffer buffer) {
