@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 final class ByteBufferCharSequence implements CharSequence {
 
   private final ByteBuffer buffer;
+  private String stringValue;
 
   ByteBufferCharSequence(ByteBuffer buffer) {
     this.buffer = buffer;
@@ -17,16 +18,19 @@ final class ByteBufferCharSequence implements CharSequence {
 
   @Override
   public String toString() {
-    if (this.buffer.hasArray()) {
-      byte[] array = this.buffer.array();
-      int offset = this.buffer.arrayOffset();
-      int length = this.buffer.capacity();
-      return new String(array, offset, length, ISO_8859_1);
-    } else {
-      byte[] array = new byte[this.buffer.capacity()];
-      this.buffer.get(array);
-      return new String(array, ISO_8859_1);
+    if (this.stringValue == null) {
+      if (this.buffer.hasArray()) {
+        byte[] array = this.buffer.array();
+        int offset = this.buffer.arrayOffset();
+        int length = this.buffer.capacity();
+        this.stringValue = new String(array, offset, length, ISO_8859_1);
+      } else {
+        byte[] array = new byte[this.buffer.capacity()];
+        this.buffer.get(array);
+        this.stringValue = new String(array, ISO_8859_1);
+      }
     }
+    return this.stringValue;
   }
 
   @Override
