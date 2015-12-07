@@ -63,6 +63,8 @@ public final class LineParser {
   /**
    * Internal iterator over every line in a file.
    *
+   * <p>This method is thread safe.</p>
+   *
    * @param path the file to parse
    * @param cs the character set to use
    * @param lineCallback callback executed for every line
