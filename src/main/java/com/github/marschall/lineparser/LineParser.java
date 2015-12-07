@@ -66,17 +66,16 @@ public final class LineParser {
 
       int mapIndex = 0;
       scanloop: while (mapIndex < mapSize) {
-        byte value = buffer.get();
+        byte value = buffer.get(mapIndex);
 
         // mapSize - mapIndex == buffer.remaining() + 1
         if (value == cr[0] && crLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a cr, but cr may be multiple bytes
           // check if the input starts with all bytes of a cr
           for (int i = 1; i < crLength; i++) {
-            if (buffer.get() != cr[i]) {
+            if (buffer.get(mapIndex + i) != cr[i]) {
               // wasn't a cr after all
               // the the buffer state and loop variable
-              buffer.position(mapIndex + 1);
               mapIndex += 1;
               continue scanloop;
             }
@@ -86,11 +85,11 @@ public final class LineParser {
           // check if lf follows the cr
           crlftest: if (lfLength < (mapSize - mapIndex)) {
             for (int i = 0; i < lfLength; i++) {
-              if (buffer.get() != lf[i]) {
+              if (buffer.get(mapIndex + crLength + i) != lf[i]) {
                 // not a lf
                 // be don't need to fix the buffer state here
                 // having the information that the newline is just a cr is enough
-                // to make the read and fix code work later
+                // to make the read
                 break crlftest;
               }
             }
@@ -100,18 +99,16 @@ public final class LineParser {
           // we found the end, read the line
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
-          // fix up the buffer and loop variable for the next iteration
-          mapIndex =lineStart = mapIndex + newline.length;
-          buffer.position(lineStart);
+          // fix up loop variable for the next iteration
+          mapIndex = lineStart = mapIndex + newline.length;
 
         } else if (value == lf[0] && lfLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a lf, but lf may be multiple bytes
           // check if the input starts with all bytes of a lf
           for (int i = 1; i < lfLength; i++) {
-            if (buffer.get() != lf[i]) {
+            if (buffer.get(mapIndex + i) != lf[i]) {
               // wasn't a lf after all
               // the the buffer state and loop variable
-              buffer.position(mapIndex + 1);
               mapIndex += 1;
               continue scanloop;
             }
@@ -120,9 +117,8 @@ public final class LineParser {
           // we found the end, read the line
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
-          // fix up the buffer and loop variable for the next iteration
+          // fix up the loop variable for the next iteration
           mapIndex = lineStart = mapIndex + lfLength;
-          buffer.position(lineStart);
         } else {
           mapIndex += 1;
         }
@@ -149,12 +145,14 @@ public final class LineParser {
     // read the current line into a CharSequence
     // create a Line object
     // call the callback
+    // reset the buffer limit
     buffer.position(lineStart).limit(mapIndex);
     CharSequence sequence = reader.readLine(buffer.slice());
+    // undo buffer limit, position doesn't matter because we only do absolute gets
+    buffer.limit(buffer.capacity());
+
     Line line = new Line(lineStart + mapStart, mapIndex - lineStart, sequence);
     lineCallback.accept(line);
-
-    buffer.limit(buffer.capacity());
   }
 
   private static void unmap(MappedByteBuffer buffer) {
