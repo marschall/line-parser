@@ -51,7 +51,11 @@ public final class LineParser {
       byte[] lf = "\n".getBytes(cs);
       byte[] crlf = "\r\n".getBytes(cs);
       boolean useFastPath = cr.length == 1 && lf.length == 1;
-      forEach(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+      if (useFastPath) {
+        forEachFast(channel, cr[0], lf[0], fileSize, 0L, reader, lineCallback);
+      } else {
+        forEach(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+      }
     }
   }
 
@@ -73,17 +77,7 @@ public final class LineParser {
         if (startsWithArray(value, cr, crLength, mapIndex, mapSize, buffer)) {
 
           int newlineLength = crLength;
-          // check if lf follows the cr
-          crlftest: if (lfLength < (mapSize - mapIndex)) {
-            for (int i = 0; i < lfLength; i++) {
-              if (buffer.get(mapIndex + crLength + i) != lf[i]) {
-                // not a lf
-                // be don't need to fix the buffer state here
-                // having the information that the newline is just a cr is enough
-                // to make the read
-                break crlftest;
-              }
-            }
+          if (continuesWithArray(lf, lfLength, crLength, mapIndex, mapSize, buffer)) {
             newlineLength += lfLength;
           }
 
@@ -122,20 +116,36 @@ public final class LineParser {
     }
   }
 
-  private boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
+  private static boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
           int mapIndex, int mapSize, MappedByteBuffer buffer) {
-    if (!(value == newLine[0] && newLineLength - 1 < (mapSize - mapIndex))) {
-      return false;
-    }
-    // input starts with the first byte of a newline, but newline may be multiple bytes
-    // check if the input starts with all bytes of a newline
-    for (int i = 1; i < newLineLength; i++) {
-      if (buffer.get(mapIndex + i) != newLine[i]) {
-        // wasn't a newline after all
-        return false;
+    if (value == newLine[0] && newLineLength - 1 < (mapSize - mapIndex)) {
+      // input starts with the first byte of a newline, but newline may be multiple bytes
+      // check if the input starts with all bytes of a newline
+      for (int i = 1; i < newLineLength; i++) {
+        if (buffer.get(mapIndex + i) != newLine[i]) {
+          // wasn't a newline after all
+          return false;
+        }
       }
+      return true;
     }
-    return true;
+    return false;
+  }
+
+  private static boolean continuesWithArray(byte[] lf, int lfLength, int offset, int mapIndex, int mapSize, MappedByteBuffer buffer) {
+    if (lfLength < (mapSize - mapIndex)) {
+      for (int i = 0; i < lfLength; i++) {
+        if (buffer.get(mapIndex + offset + i) != lf[i]) {
+          // not a lf
+          // be don't need to fix the buffer state here
+          // having the information that the newline is just a cr is enough
+          // to make the read
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   // fast path version
