@@ -20,6 +20,32 @@ import java.util.function.Consumer;
  *  <li>only a few character of every line is required</li>
  * </ul>
  *
+ * <p>Offers a fast paths for:</p>
+ * <ul>
+ *  <li>single byte character sets</li>
+ *  <li><a href="https://en.wikipedia.org/wiki/ISO/IEC_8859-1">ISO 8859-1</a> compatible character sets</li>
+ * </ul>
+ * <p>They can be combined for maximum performance.</p>
+ *
+ * <h2>Algorithm</h2>
+ * The following algorithm is used to parse files:
+ * <ol>
+ *  <li>map the file into memory</li>
+ *  <li>encode <code>CR</code>, <code>LF</code> and <code>CR LF</code> to bytes using the give character set</li>
+ *  <li>while not done
+ *    <ol>
+ *      <li>scan the file byte by byte for cr of lf</li>
+ *      <li>create a line object and invoke the callback</li>
+ *    </ol>
+ *  </li>
+ *  <li>unmap the file from memory</li>
+ * </ol>
+ * <p>If the file is larger can 2GB then it is mapped into memory multiple times.
+ * This has to be done because Java does not support file mappings larger than 2GB.</p>
+ *
+ * <p>Unmapping the file from memory is controversial and can only be done using semi-official
+ * APIs. The alternative would be to rely on finalization to close file handles..</p>
+ *
  * @see Line
  */
 public final class LineParser {

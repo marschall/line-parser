@@ -21,3 +21,8 @@ Limitations
 
  * doesn't handle file encodings with a BOM
 
+Misc
+----
+ * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
+ * the main parsing loop is likely to profit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
+
