@@ -81,7 +81,7 @@ public final class LineParser {
             }
           }
 
-          byte[] newline = cr;
+          int newlineLength = crLength;
           // check if lf follows the cr
           crlftest: if (lfLength < (mapSize - mapIndex)) {
             for (int i = 0; i < lfLength; i++) {
@@ -93,14 +93,14 @@ public final class LineParser {
                 break crlftest;
               }
             }
-            newline = crlf;
+            newlineLength += lfLength;
           }
 
           // we found the end, read the line
           readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
 
           // fix up loop variable for the next iteration
-          mapIndex = lineStart = mapIndex + newline.length;
+          mapIndex = lineStart = mapIndex + newlineLength;
 
         } else if (value == lf[0] && lfLength - 1 < (mapSize - mapIndex)) {
           // input starts with the first byte of a lf, but lf may be multiple bytes
