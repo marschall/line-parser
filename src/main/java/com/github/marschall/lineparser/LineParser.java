@@ -126,7 +126,9 @@ public final class LineParser {
       }
 
       if (mapSize + mapStart < fileSize) {
-        // not the last mapping
+        // we could not map the entire file
+        // map from the start of the last line
+        // and continue reading from there
         // TODO we should unmap now
         forEach(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
