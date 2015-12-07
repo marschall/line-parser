@@ -47,9 +47,10 @@ public final class LineParser {
             FileChannel channel = stream.getChannel()) {
       long fileSize = channel.size();
       LineReader reader = LineReader.forCharset(cs);
-      byte[] lf = "\n".getBytes(cs);
       byte[] cr = "\r".getBytes(cs);
+      byte[] lf = "\n".getBytes(cs);
       byte[] crlf = "\r\n".getBytes(cs);
+      boolean useFastPath = cr.length == 1 && lf.length == 1;
       forEach(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
     }
   }
@@ -131,6 +132,65 @@ public final class LineParser {
         // and continue reading from there
         // TODO we should unmap now
         forEach(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
+      } else if (lineStart < mapSize) {
+        // if the last line didn't end in a newline read it now
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+      }
+
+    } finally {
+      unmap(buffer);
+    }
+  }
+
+  // fast path version
+  // much simpler and inlines
+  private void forEachFast(FileChannel channel, byte cr, byte lf,
+          long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
+    int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
+    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    try {
+
+      int lineStart = 0; // in buffer
+
+      int mapIndex = 0;
+      while (mapIndex < mapSize) {
+        byte value = buffer.get(mapIndex);
+
+        if (value == cr) {
+          int newlineLength;
+          // check if lf follows the cr
+          // mapSize - mapIndex == buffer.remaining() + 1
+          if ((mapSize - mapIndex) > 1 && buffer.get(mapIndex + 1) == lf) {
+            newlineLength = 2;
+          } else {
+            newlineLength = 1;
+          }
+
+          // we found the end, read the line
+          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+          // fix up loop variable for the next iteration
+          mapIndex = lineStart = mapIndex + newlineLength;
+
+        } else if (value == lf) {
+
+          // we found the end, read the line
+          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+          // fix up the loop variable for the next iteration
+          mapIndex = lineStart = mapIndex + 1;
+        } else {
+          mapIndex += 1;
+        }
+
+      }
+
+      if (mapSize + mapStart < fileSize) {
+        // we could not map the entire file
+        // map from the start of the last line
+        // and continue reading from there
+        // TODO we should unmap now
+        forEachFast(channel, cr, lf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
