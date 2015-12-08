@@ -57,7 +57,7 @@ public class ByteBufferCharSequenceTest {
   }
 
   @Test
-  public void natioveBuffer() {
+  public void nativeBuffer() {
 
     byte[] bytes = this.string.getBytes(StandardCharsets.ISO_8859_1);
 
