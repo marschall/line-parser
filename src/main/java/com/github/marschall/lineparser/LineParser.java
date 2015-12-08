@@ -44,7 +44,9 @@ import java.util.function.Consumer;
  * This has to be done because Java does not support file mappings larger than 2GB.</p>
  *
  * <p>Unmapping the file from memory is controversial and can only be done using semi-official
- * APIs. The alternative would be to rely on finalization to close file handles..</p>
+ * APIs. The alternative would be to rely on finalization to close file handles.</p>
+ *
+ * <p>This class is thread safe.</p>
  *
  * @see Line
  */
