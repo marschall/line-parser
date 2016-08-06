@@ -44,11 +44,12 @@ public final class Line {
    * {@link CharSequence#toString()} ideally calling
    * {@link CharSequence#subSequence(int, int)} first.</p>
    *
-   * <p>Rember {@link Object#equals(Object)} and {@link Object#hashCode()}
+   * <p>Remember {@link Object#equals(Object)} and {@link Object#hashCode()}
    * are not defined for {@link CharSequence} and {@link CharSequence}
    * should therefore not be used as {@link Map} keys.</p>
    *
    * @return the content of this line
+   * @see String#contentEquals(CharSequence)
    */
   public CharSequence getContent() {
     return this.line;

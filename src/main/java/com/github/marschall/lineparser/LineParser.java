@@ -260,16 +260,24 @@ public final class LineParser {
         cleanerMethod.setAccessible(true);
       }
       Object cleaner = cleanerMethod.invoke(buffer);
-      Method cleanMethod = cleaner.getClass().getMethod("clean");
-      if (!cleanMethod.isAccessible()) {
-        cleanMethod.setAccessible(true);
+      if (cleaner instanceof Runnable) {
+        // Java 9 branch
+        // jdk.internal.ref.Cleaner cleaner = ((java.nio.DirectByteBufferR) buffer).cleaner();
+        // cleaner.run();
+        ((Runnable) cleaner).run();
+      } else {
+        // Java 8 branch
+        // sun.misc.Cleaner cleaner = ((sun.nio.ch.DirectBuffer) buffer).cleaner();
+        // cleaner.clean();
+        Method cleanMethod = cleaner.getClass().getMethod("clean");
+        if (!cleanMethod.isAccessible()) {
+          cleanMethod.setAccessible(true);
+        }
+        cleanMethod.invoke(cleaner);
       }
-      cleanMethod.invoke(cleaner);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("could not unmap buffer", e);
     }
-//    sun.misc.Cleaner cleaner = ((sun.nio.ch.DirectBuffer) buffer).cleaner();
-//    cleaner.clean();
   }
 
 }

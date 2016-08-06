@@ -3,7 +3,7 @@ line-parser
 
 An `mmap()` based line parser for cases when:
 
- * the start position in the file of a line is required
+ * the start byte position in the file of a line is required
  * the length in bytes of a line is required
  * only a few character of every line is required
 
@@ -23,6 +23,7 @@ Limitations
 
 Misc
 ----
+
  * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
  * the main parsing loop is likely to profit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
 
@@ -35,4 +36,9 @@ parser.forEach(path, cs, (line) -> {
   System.out.printf("[%d,%d]%s%n", line.getOffset(), line.getLength(), line.getContent());
 });
 ```
+
+JDK9
+----
+
+Initial testing with early access versions of JDK9 have been done and the code has been updated to work on both JDK8 and JDK9.
 
