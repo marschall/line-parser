@@ -1,5 +1,13 @@
-line-parser
+line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser) [![Javadocs](http://www.javadoc.io/badge/com.github.marschall/line-parser.svg)](http://www.javadoc.io/doc/com.github.marschall/line-parser)
 ===========
+
+```xml
+<dependency>
+    <groupId>com.github.marschall</groupId>
+    <artifactId>line-parser</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
 
 An `mmap()` based line parser for cases when:
 
