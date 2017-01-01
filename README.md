@@ -18,11 +18,13 @@ An `mmap()` based line parser for cases when:
 In these cases it can theoretically be more efficient than `BufferedReader` because:
 
  * the copy operations of buffered IO are avoided
- * the allocation and resizing of an intermediate StringBuffer is avoided
- * the allocation of the final String is avoided, only the required substrings
+ * the allocation and resizing of an intermediate `StringBuffer` is avoided
+ * the allocation of the final `String` is avoided, only the required substrings
    are allocated
 
-The performance way still be slower than a than `BufferedReader` based approach but it should consume much less memory bandwidth and produce only a fraction of the garbage.
+The performance may still be slower than a than `BufferedReader` based approach but it should consume much less memory bandwidth and produce only a fraction of the garbage.
+
+As this project gives you a `CharSequence` instead of a `String` you may want to have a look at the [charsequences](https://github.com/marschall/charsequences) which gives you some the `String` convenience methods while avoiding allocation.
 
 Limitations
 -----------
@@ -33,7 +35,7 @@ Misc
 ----
 
  * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
- * the main parsing loop is likely to profit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
+ * the main parsing loop is likely to benefit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
 
 Usage
 -----
@@ -45,8 +47,4 @@ parser.forEach(path, cs, (line) -> {
 });
 ```
 
-JDK9
-----
-
-Initial testing with early access versions of JDK9 have been done and the code has been updated to work on both JDK8 and JDK9.
 
