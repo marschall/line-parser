@@ -11,8 +11,8 @@ final class NonDecodingLineReader implements LineReader {
    * {@inheritDoc}
    */
   @Override
-  public CharSequence readLine(ByteBuffer buffer) {
-    return new ByteBufferCharSequence(buffer);
+  public CharSequence readLine(ByteBuffer buffer, int start, int length) {
+    return new ByteBufferCharSequence(buffer, start, length);
   }
 
 }

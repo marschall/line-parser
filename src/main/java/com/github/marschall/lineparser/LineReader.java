@@ -19,10 +19,12 @@ interface LineReader {
    * {@link CharSequence#toString()} ideally calling
    * {@link CharSequence#subSequence(int, int)} first.</p>
    *
-   * @param buffer the line in bytes
+   * @param buffer contains the line
+   * @param start of the line in {@code buffer}
+   * @param length the length of the line in bytes
    * @return the line in characters
    */
-  CharSequence readLine(ByteBuffer buffer);
+  CharSequence readLine(ByteBuffer buffer, int start, int length);
 
 
   /**

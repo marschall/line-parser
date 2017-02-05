@@ -27,8 +27,12 @@ final class DecodingLineReader implements LineReader {
    * {@inheritDoc}
    */
   @Override
-  public CharSequence readLine(ByteBuffer buffer) {
+  public CharSequence readLine(ByteBuffer buffer, int start, int length) {
+    // reset the buffer limit
+    buffer.position(start).limit(start + length);
     this.decode(buffer);
+    // undo buffer limit, position doesn't matter because we only do absolute gets
+    buffer.limit(buffer.capacity());
     return this.out;
   }
 
@@ -42,7 +46,7 @@ final class DecodingLineReader implements LineReader {
   }
 
   private void decode(ByteBuffer in) {
-    in.rewind();
+    int originalPosition = in.position();
     this.out.clear();
     CoderResult result = decoder.decode(in, this.out, true);
     if (result.isOverflow()) {
@@ -53,6 +57,7 @@ final class DecodingLineReader implements LineReader {
       // we could get creative with #averageCharsPerByte and #maxCharsPerByte
       // but would have to track if we got it wrong
       this.out = CharBuffer.allocate(newCapacity);
+      in.position(originalPosition);
       decode(in);
     } else {
       out.flip();

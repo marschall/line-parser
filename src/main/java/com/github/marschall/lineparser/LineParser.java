@@ -243,13 +243,10 @@ public final class LineParser {
     // read the current line into a CharSequence
     // create a Line object
     // call the callback
-    // reset the buffer limit
-    buffer.position(lineStart).limit(mapIndex);
-    CharSequence sequence = reader.readLine(buffer.slice());
-    // undo buffer limit, position doesn't matter because we only do absolute gets
-    buffer.limit(buffer.capacity());
+    int length = mapIndex - lineStart;
+    CharSequence sequence = reader.readLine(buffer, lineStart, length);
 
-    Line line = new Line(lineStart + mapStart, mapIndex - lineStart, sequence);
+    Line line = new Line(lineStart + mapStart, length, sequence);
     lineCallback.accept(line);
   }
 

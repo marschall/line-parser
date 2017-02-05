@@ -6,14 +6,24 @@ import java.nio.ByteBuffer;
 
 /**
  * {@link CharSequence} for Latin-1 compatible input that needs no decoding.
+ *
+ * <p>Avoid {@link ByteBuffer#slice()} because it allocates quite a lot.
  */
 final class ByteBufferCharSequence implements CharSequence {
 
   private final ByteBuffer buffer;
+  private final int offset;
+  private final int length;
   private String stringValue;
 
   ByteBufferCharSequence(ByteBuffer buffer) {
+    this(buffer, 0, buffer.capacity());
+  }
+
+  ByteBufferCharSequence(ByteBuffer buffer, int offset, int length) {
     this.buffer = buffer;
+    this.offset = offset;
+    this.length = length;
   }
 
   @Override
@@ -21,12 +31,13 @@ final class ByteBufferCharSequence implements CharSequence {
     if (this.stringValue == null) {
       if (this.buffer.hasArray()) {
         byte[] array = this.buffer.array();
-        int offset = this.buffer.arrayOffset();
-        int length = this.buffer.capacity();
-        this.stringValue = new String(array, offset, length, ISO_8859_1);
+        int arrayOffset = this.buffer.arrayOffset() + this.offset;
+        this.stringValue = new String(array, arrayOffset, this.length, ISO_8859_1);
       } else {
-        byte[] array = new byte[this.buffer.capacity()];
-        this.buffer.get(array);
+        byte[] array = new byte[this.length];
+        for (int i = 0; i < array.length; i++) {
+          array[i] = this.buffer.get(i + this.offset);
+        }
         this.stringValue = new String(array, ISO_8859_1);
       }
     }
@@ -35,20 +46,23 @@ final class ByteBufferCharSequence implements CharSequence {
 
   @Override
   public int length() {
-    return this.buffer.capacity();
+    return this.length;
   }
 
   @Override
   public char charAt(int index) {
-    return (char) (this.buffer.get(index) & 0xFF);
+    if (index < 0 || index >= this.length) {
+      throw new IndexOutOfBoundsException();
+    }
+    return (char) (this.buffer.get(this.offset + index) & 0xFF);
   }
 
   @Override
   public CharSequence subSequence(int start, int end) {
-    this.buffer.position(start).limit(end);
-    ByteBufferCharSequence subSequence = new ByteBufferCharSequence(buffer.slice());
-    this.buffer.position(0).limit(this.buffer.capacity());
-    return subSequence;
+    if (start < 0 || start > this.length || start > end || end > this.length) {
+      throw new IndexOutOfBoundsException();
+    }
+    return new ByteBufferCharSequence(this.buffer, this.offset + start, end - start);
   }
 
 }

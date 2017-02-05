@@ -1,6 +1,7 @@
 package com.github.marschall.lineparser;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
@@ -17,18 +18,14 @@ public class LineParserDecodeTest {
     DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
     CharBuffer charBuffer = reader.getOut();
 
-    byteBuffer.position(0).limit(3);
-    ByteBuffer aBuffer = byteBuffer.slice();
+    assertSame(charBuffer, reader.readLine(byteBuffer, 0, 3));
+    assertEquals("aaa", reader.readLine(byteBuffer, 0, 3).toString());
 
-    byteBuffer.position(3).limit(6);
-    ByteBuffer bBuffer = byteBuffer.slice();
+    assertSame(charBuffer, reader.readLine(byteBuffer, 3, 3));
+    assertEquals("bbb", reader.readLine(byteBuffer, 3, 3).toString());
 
-    byteBuffer.position(6).limit(9);
-    ByteBuffer cBuffer = byteBuffer.slice();
-
-    assertSame(charBuffer, reader.readLine(aBuffer));
-    assertSame(charBuffer, reader.readLine(bBuffer));
-    assertSame(charBuffer, reader.readLine(cBuffer));
+    assertSame(charBuffer, reader.readLine(byteBuffer, 6, 3));
+    assertEquals("ccc", reader.readLine(byteBuffer, 6, 3).toString());
   }
 
   @Test
@@ -37,19 +34,15 @@ public class LineParserDecodeTest {
     DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
     CharBuffer charBuffer = reader.getOut();
 
-    byteBuffer.position(0).limit(3);
-    ByteBuffer aBuffer = byteBuffer.slice();
+    assertSame(charBuffer, reader.readLine(byteBuffer, 0, 3));
+    assertEquals("aaa", reader.readLine(byteBuffer, 0, 3).toString());
 
-    byteBuffer.position(3).limit(7);
-    ByteBuffer bBuffer = byteBuffer.slice();
-
-    byteBuffer.position(7).limit(11);
-    ByteBuffer cBuffer = byteBuffer.slice();
-
-    assertSame(charBuffer, reader.readLine(aBuffer));
-    CharBuffer bResult = (CharBuffer) reader.readLine(bBuffer);
+    CharBuffer bResult = (CharBuffer) reader.readLine(byteBuffer, 3, 4);
     assertNotSame(charBuffer, bResult);
-    assertSame(bResult, reader.readLine(cBuffer));
+    assertEquals("bbbb", reader.readLine(byteBuffer, 3, 4).toString());
+
+    assertSame(bResult, reader.readLine(byteBuffer, 7, 4));
+    assertEquals("cccc", reader.readLine(byteBuffer, 7, 4).toString());
   }
 
 }
