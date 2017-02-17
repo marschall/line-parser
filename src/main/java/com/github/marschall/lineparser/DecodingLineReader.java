@@ -33,6 +33,8 @@ final class DecodingLineReader implements LineReader {
     this.decode(buffer);
     // undo buffer limit, position doesn't matter because we only do absolute gets
     buffer.limit(buffer.capacity());
+    // CharBufferCharSequence could be used, more memory usage indirection initially
+    // but less after a few #subSequence calls
     return this.out;
   }
 

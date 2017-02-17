@@ -121,10 +121,13 @@
         </configuration>
         <executions>
           <execution>
-            <id>crate-jarscan-report</id>
+            <id>max-method-size</id>
             <goals>
-              <goal>scan</goal>
+              <goal>maxMethodSize</goal>
             </goals>
+            <configuration>
+              <limit>325</limit>
+            </configuration>
           </execution>
         </executions>
       </plugin>

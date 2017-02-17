@@ -82,15 +82,38 @@ public final class LineParser {
       byte[] crlf = "\r\n".getBytes(cs);
       boolean useFastPath = cr.length == 1 && lf.length == 1;
       if (useFastPath) {
-        forEachFast(channel, cr[0], lf[0], fileSize, 0L, reader, lineCallback);
+        forEachFast(channel, cr[0], lf[0], fileSize, reader, lineCallback);
       } else {
-        forEach(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+        forEach(channel, cr, lf, crlf, fileSize, reader, lineCallback);
       }
     }
   }
 
-  private void forEach(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf,
-          long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
+  private void forEachFast(FileChannel channel, byte cr, byte lf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
+          throws IOException {
+    FastMapInfo mapInfo = new FastMapInfo(channel, cr, lf, fileSize, 0L, reader, lineCallback);
+    while (mapInfo != null) {
+      mapInfo = this.forEachFast(mapInfo);
+    }
+  }
+
+  private void forEach(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
+          throws IOException {
+    MapInfo mapInfo = new MapInfo(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+    while (mapInfo != null) {
+      mapInfo = this.forEach(mapInfo);
+    }
+  }
+
+  private MapInfo forEach(MapInfo mapInfo) throws IOException {
+    FileChannel channel = mapInfo.channel;
+    byte[] cr = mapInfo.cr;
+    byte[] lf = mapInfo.lf;
+    byte[] crlf = mapInfo.crlf;
+    long fileSize = mapInfo.fileSize;
+    long mapStart = mapInfo.mapStart;
+    LineReader reader = mapInfo.reader;
+    Consumer<Line> lineCallback =  mapInfo.lineCallback;
     int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
@@ -134,8 +157,7 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        // TODO we should unmap now
-        forEach(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
+        return new MapInfo(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback);
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
@@ -144,6 +166,7 @@ public final class LineParser {
     } finally {
       unmap(buffer);
     }
+    return null;
   }
 
   private static boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
@@ -180,8 +203,14 @@ public final class LineParser {
 
   // fast path version
   // much simpler and inlines
-  private void forEachFast(FileChannel channel, byte cr, byte lf,
-          long fileSize, long mapStart, LineReader reader, Consumer<Line> lineCallback) throws IOException {
+  private FastMapInfo forEachFast(FastMapInfo mapInfo) throws IOException {
+    FileChannel channel = mapInfo.channel;
+    byte cr = mapInfo.cr;
+    byte lf = mapInfo.lf;
+    long fileSize = mapInfo.fileSize;
+    long mapStart = mapInfo.mapStart;
+    LineReader reader = mapInfo.reader;
+    Consumer<Line> lineCallback =  mapInfo.lineCallback;
     int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
@@ -225,8 +254,7 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        // TODO we should unmap now
-        forEachFast(channel, cr, lf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
+        return new FastMapInfo(channel, cr, lf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
@@ -235,6 +263,7 @@ public final class LineParser {
     } finally {
       unmap(buffer);
     }
+    return null;
   }
 
   private static void readLine(int lineStart, long mapStart, int mapIndex,
@@ -248,6 +277,56 @@ public final class LineParser {
 
     Line line = new Line(lineStart + mapStart, length, sequence);
     lineCallback.accept(line);
+  }
+
+  static final class FastMapInfo {
+
+    FileChannel channel;
+    byte cr;
+    byte lf;
+    long fileSize;
+    long mapStart;
+    LineReader reader;
+    Consumer<Line> lineCallback;
+
+    FastMapInfo(FileChannel channel, byte cr, byte lf, long fileSize,
+            long mapStart, LineReader reader, Consumer<Line> lineCallback) {
+      this.channel = channel;
+      this.cr = cr;
+      this.lf = lf;
+      this.fileSize = fileSize;
+      this.mapStart = mapStart;
+      this.reader = reader;
+      this.lineCallback = lineCallback;
+    }
+
+  }
+
+  static final class MapInfo {
+
+    final FileChannel channel;
+    final byte[] cr;
+    final byte[] lf;
+    final byte[] crlf;
+    final long fileSize;
+    final long mapStart;
+    final LineReader reader;
+    final Consumer<Line>lineCallback;
+
+    MapInfo(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf,
+            long fileSize, long mapStart, LineReader reader,
+            Consumer<Line> lineCallback) {
+      this.channel = channel;
+      this.cr = cr;
+      this.lf = lf;
+      this.crlf = crlf;
+      this.fileSize = fileSize;
+      this.mapStart = mapStart;
+      this.reader = reader;
+      this.lineCallback = lineCallback;
+    }
+
+
   }
 
   private static void unmap(MappedByteBuffer buffer) {
