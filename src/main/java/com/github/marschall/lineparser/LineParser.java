@@ -342,13 +342,13 @@ public final class LineParser {
 
   static final class FastMapInfo {
 
-    FileChannel channel;
-    byte cr;
-    byte lf;
-    long fileSize;
-    long mapStart;
-    LineReader reader;
-    Consumer<Line> lineCallback;
+    final FileChannel channel;
+    final byte cr;
+    final byte lf;
+    final long fileSize;
+    final long mapStart;
+    final LineReader reader;
+    final Consumer<Line> lineCallback;
 
     FastMapInfo(FileChannel channel, byte cr, byte lf, long fileSize,
             long mapStart, LineReader reader, Consumer<Line> lineCallback) {
