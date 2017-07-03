@@ -104,7 +104,7 @@ public final class LineParser {
 
   private static boolean isJava9OrLater() {
     try {
-      Class.forName("java.lang.Runtime.Version");
+      Class.forName("java.lang.Runtime$Version");
       return true;
     } catch (ClassNotFoundException e) {
       return false;
