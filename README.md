@@ -5,7 +5,7 @@ line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/
 <dependency>
     <groupId>com.github.marschall</groupId>
     <artifactId>line-parser</artifactId>
-    <version>0.4.1</version>
+    <version>0.4.2</version>
 </dependency>
 ```
 
