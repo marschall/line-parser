@@ -29,13 +29,14 @@ As this project gives you a `CharSequence` instead of a `String` you may want to
 Limitations
 -----------
 
- * doesn't handle file encodings with a BOM
+ * doesn't handle file encodings with a BOM (UTF-16, UTF-32)
 
 Misc
 ----
 
  * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
  * the main parsing loop is likely to benefit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
+ * if you're using UTF-8 with a [BOM](https://en.wikipedia.org/wiki/Byte_order_mark) then the BOM is returned as well
 
 Usage
 -----
