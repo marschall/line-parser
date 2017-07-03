@@ -134,6 +134,7 @@
           </execution>
         </executions>
       </plugin>
+      <!-- fails with jigsaw
       <plugin>
         <groupId>com.github.ferstl</groupId>
         <artifactId>jitwatch-jarscan-maven-plugin</artifactId>
@@ -152,6 +153,7 @@
           </execution>
         </executions>
       </plugin>
+      -->
       <plugin>
         <artifactId>maven-release-plugin</artifactId>
         <configuration>
