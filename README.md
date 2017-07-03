@@ -5,7 +5,7 @@ line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/
 <dependency>
     <groupId>com.github.marschall</groupId>
     <artifactId>line-parser</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
 </dependency>
 ```
 
@@ -37,6 +37,7 @@ Misc
  * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
  * the main parsing loop is likely to benefit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
  * if you're using UTF-8 with a [BOM](https://en.wikipedia.org/wiki/Byte_order_mark) then the BOM is returned as well
+ * the library runs on Java 8 but is also a Java 9 module that requires only the `jdk.unsupported` module besides the `java.base` module
 
 Usage
 -----
