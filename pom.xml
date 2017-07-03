@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.marschall</groupId>
   <artifactId>line-parser</artifactId>
-  <version>0.4.2</version>
+  <version>0.4.3-SNAPSHOT</version>
   <inceptionYear>2015</inceptionYear>
   <name>line-parser</name>
   <description>A line parser for Java based on mmap()</description>
@@ -14,7 +14,7 @@
     <connection>scm:git:git@github.com:marschall/line-parser.git</connection>
     <developerConnection>scm:git:git@github.com:marschall/line-parser.git</developerConnection>
     <url>${project.url}</url>
-    <tag>0.4.2</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <ciManagement>
