@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.marschall</groupId>
@@ -6,11 +7,7 @@
   <version>0.4.1-SNAPSHOT</version>
   <inceptionYear>2015</inceptionYear>
   <name>line-parser</name>
-  <description>A line parser</description>
-
-  <prerequisites>
-    <maven>3.0.3</maven>
-  </prerequisites>
+  <description>A line parser for Java based on mmap()</description>
 
   <url>https://github.com/marschall/line-parser</url>
 
@@ -156,21 +153,12 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
         <configuration>
           <mavenExecutorId>forked-path</mavenExecutorId>
           <arguments>-Pdeploy-to-sonatype-oss</arguments>
         </configuration>
       </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-                <source>1.9</source>
-                <target>1.9</target>
-            </configuration>
-        </plugin>
     </plugins>
     <pluginManagement>
       <plugins>
@@ -302,46 +290,47 @@
       </activation>
       <build>
         <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-compile</id>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default-compile</id>
+                <configuration>
+                  <!-- compile everything to ensure module-info contains 
+                    right entries -->
+                  <!-- required when JAVA_HOME is JDK 8 or below -->
+                  <jdkToolchain>
+                    <version>9</version>
+                  </jdkToolchain>
+                  <release>9</release>
+                </configuration>
+              </execution>
+              <execution>
+                <id>base-compile</id>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <!-- recompile everything for target VM except the module-info.java -->
+                <configuration>
+                  <excludes>
+                    <exclude>module-info.java</exclude>
+                  </excludes>
+                  <jdkToolchain>
+                    <version>9</version>
+                  </jdkToolchain>
+                  <release>8</release>
+                </configuration>
+              </execution>
+            </executions>
+            <!-- defaults for compile and testCompile -->
             <configuration>
-              <!-- compile everything to ensure module-info contains right entries -->
-              <!-- required when JAVA_HOME is JDK 8 or below -->
-              <jdkToolchain>
-                <version>9</version>
-              </jdkToolchain>
-              <release>9</release>
-            </configuration>
-          </execution>
-          <execution>
-            <id>base-compile</id>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <!-- recompile everything for target VM except the module-info.java -->
-            <configuration>
-              <excludes>
-                <exclude>module-info.java</exclude>
-              </excludes>
+              <!-- jdkToolchain required when JAVA_HOME is JDK 9 or above -->
               <jdkToolchain>
                 <version>9</version>
               </jdkToolchain>
               <release>8</release>
             </configuration>
-          </execution>
-        </executions>
-        <!-- defaults for compile and testCompile -->
-        <configuration>
-          <!-- jdkToolchain required when JAVA_HOME is JDK 9 or above -->
-          <jdkToolchain>
-            <version>9</version>
-          </jdkToolchain>
-          <release>8</release>
-        </configuration>
-      </plugin>
+          </plugin>
         </plugins>
       </build>
     </profile>
@@ -357,10 +346,7 @@
       <build>
         <plugins>
           <plugin>
-            <!--
-              can't use toolchains
-              https://github.com/travis-ci/travis-ci/issues/2727
-            -->
+            <!-- can't use toolchains https://github.com/travis-ci/travis-ci/issues/2727 -->
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <source>${java.version}</source>
