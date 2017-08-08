@@ -141,11 +141,11 @@ public final class LineParser {
       byte[] cr = "\r".getBytes(cs);
       byte[] lf = "\n".getBytes(cs);
       byte[] crlf = "\r\n".getBytes(cs);
-      boolean useFastPath = cr.length == 1 && lf.length == 1;
+      boolean useFastPath = (cr.length == 1) && (lf.length == 1);
       if (useFastPath) {
-        forEachFast(channel, cr[0], lf[0], fileSize, reader, lineCallback);
+        this.forEachFast(channel, cr[0], lf[0], fileSize, reader, lineCallback);
       } else {
-        forEach(channel, cr, lf, crlf, fileSize, reader, lineCallback);
+        this.forEach(channel, cr, lf, crlf, fileSize, reader, lineCallback);
       }
     }
   }
@@ -175,7 +175,7 @@ public final class LineParser {
     long mapStart = mapInfo.mapStart;
     LineReader reader = mapInfo.reader;
     Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
+    int mapSize = (int) Math.min(fileSize - mapStart, this.maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
@@ -214,7 +214,7 @@ public final class LineParser {
 
       }
 
-      if (mapSize + mapStart < fileSize) {
+      if ((mapSize + mapStart) < fileSize) {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
@@ -232,7 +232,7 @@ public final class LineParser {
 
   private static boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
           int mapIndex, int mapSize, MappedByteBuffer buffer) {
-    if (value == newLine[0] && newLineLength - 1 < (mapSize - mapIndex)) {
+    if ((value == newLine[0]) && ((newLineLength - 1) < (mapSize - mapIndex))) {
       // input starts with the first byte of a newline, but newline may be multiple bytes
       // check if the input starts with all bytes of a newline
       for (int i = 1; i < newLineLength; i++) {
@@ -272,7 +272,7 @@ public final class LineParser {
     long mapStart = mapInfo.mapStart;
     LineReader reader = mapInfo.reader;
     Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = (int) Math.min(fileSize - mapStart, maxMapSize);
+    int mapSize = (int) Math.min(fileSize - mapStart, this.maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
@@ -286,7 +286,7 @@ public final class LineParser {
           int newlineLength;
           // check if lf follows the cr
           // mapSize - mapIndex == buffer.remaining() + 1
-          if ((mapSize - mapIndex) > 1 && buffer.get(mapIndex + 1) == lf) {
+          if (((mapSize - mapIndex) > 1) && (buffer.get(mapIndex + 1) == lf)) {
             newlineLength = 2;
           } else {
             newlineLength = 1;
@@ -311,7 +311,7 @@ public final class LineParser {
 
       }
 
-      if (mapSize + mapStart < fileSize) {
+      if ((mapSize + mapStart) < fileSize) {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there

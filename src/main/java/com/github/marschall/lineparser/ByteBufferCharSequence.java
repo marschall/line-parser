@@ -51,7 +51,7 @@ final class ByteBufferCharSequence implements CharSequence {
 
   @Override
   public char charAt(int index) {
-    if (index < 0 || index >= this.length) {
+    if ((index < 0) || (index >= this.length)) {
       throw new IndexOutOfBoundsException();
     }
     return (char) (this.buffer.get(this.offset + index) & 0xFF);
@@ -59,7 +59,7 @@ final class ByteBufferCharSequence implements CharSequence {
 
   @Override
   public CharSequence subSequence(int start, int end) {
-    if (start < 0 || start > this.length || start > end || end > this.length) {
+    if ((start < 0) || (start > this.length) || (start > end) || (end > this.length)) {
       throw new IndexOutOfBoundsException();
     }
     return new ByteBufferCharSequence(this.buffer, this.offset + start, end - start);

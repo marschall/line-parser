@@ -44,13 +44,13 @@ final class DecodingLineReader implements LineReader {
    * @return the current buffer
    */
   CharBuffer getOut() {
-    return out;
+    return this.out;
   }
 
   private void decode(ByteBuffer in) {
     int originalPosition = in.position();
     this.out.clear();
-    CoderResult result = decoder.decode(in, this.out, true);
+    CoderResult result = this.decoder.decode(in, this.out, true);
     if (result.isOverflow()) {
       int newCapacity = this.out.capacity() * 2;
       // double until it fits
@@ -60,9 +60,9 @@ final class DecodingLineReader implements LineReader {
       // but would have to track if we got it wrong
       this.out = CharBuffer.allocate(newCapacity);
       in.position(originalPosition);
-      decode(in);
+      this.decode(in);
     } else {
-      out.flip();
+      this.out.flip();
     }
   }
 
