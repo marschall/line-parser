@@ -166,49 +166,69 @@ public final class LineParser {
       LineReader reader = LineReader.forCharset(cs);
       byte[] cr = "\r".getBytes(cs);
       byte[] lf = "\n".getBytes(cs);
-      byte[] crlf = "\r\n".getBytes(cs);
       boolean useFastPath = (cr.length == 1) && (lf.length == 1);
+      FileInfo fileInfo = new FileInfo(path, channel, fileSize, reader, lineCallback);
       if (useFastPath) {
-        this.forEachFast(channel, cr[0], lf[0], fileSize, reader, lineCallback);
+        FastEncodingInfo encodingInfo = new FastEncodingInfo(cr[0], lf[0]);
+        this.forEachFast(fileInfo, encodingInfo);
       } else {
-        this.forEach(cs, channel, cr, lf, crlf, fileSize, reader, lineCallback);
+        EncodingInfo encodingInfo = new EncodingInfo(cs, cr, lf);
+        this.forEach(fileInfo, encodingInfo);
       }
     }
   }
 
-  private void forEachFast(FileChannel channel, byte cr, byte lf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
-          throws IOException {
-    FastMapInfo mapInfo = new FastMapInfo(channel, cr, lf, fileSize, 0L, reader, lineCallback);
+  private void forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo) throws IOException {
+    FastMapInfo mapInfo = new FastMapInfo(0L);
     while (mapInfo != null) {
-      mapInfo = this.forEachFast(mapInfo);
+      mapInfo = this.forEachFast(fileInfo, encodingInfo, mapInfo);
     }
   }
 
-  private void forEach(Charset cs, FileChannel channel, byte[] cr, byte[] lf, byte[] crlf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
-          throws IOException {
-    MapInfo mapInfo = new MapInfo(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+  private void forEach(FileInfo fileInfo, EncodingInfo encodingInfo) throws IOException {
+    MapInfo mapInfo = new MapInfo(0L);
+    FileInfo actualFileInfo;
+    EncodingInfo actualEncodingInfo;
     MappedByteBuffer buffer;
-    if (isAmbiguous(cs)) {
-      buffer = this.map(mapInfo);
-      Charset actualCharset = this.resolveBom(cs, buffer);
+    if (isAmbiguous(encodingInfo.cs)) {
+      buffer = this.map(fileInfo, mapInfo);
+      Charset actualCharset;
+      try {
+        actualCharset = this.resolveBom(encodingInfo.cs, buffer);
+        // normally unmapping happens in forEach() we when we get
+        // an unchecked exceptio or error we need to do it here
+      } catch (Error | RuntimeException e) {
+        unmap(buffer, fileInfo);
+        throw e;
+      }
       LineReader actualReader = LineReader.forCharset(actualCharset);
+      // TODO skip BOM by incrementing map start
       byte[] actualCr = "\r".getBytes(actualCharset);
       byte[] actualLf = "\n".getBytes(actualCharset);
-      byte[] actualCrlf = "\r\n".getBytes(actualCharset);
-      mapInfo = new MapInfo(channel, actualCr, actualLf, actualCrlf, fileSize, 0L, actualReader, lineCallback);
+      actualEncodingInfo = new EncodingInfo(actualCharset, actualCr, actualLf);
+      actualFileInfo = new FileInfo(fileInfo.path, fileInfo.channel, fileInfo.fileSize, actualReader, fileInfo.lineCallback);
     } else {
+      actualEncodingInfo = encodingInfo;
+      actualFileInfo = fileInfo;
       buffer = null;
     }
     while (mapInfo != null) {
-      mapInfo = this.forEach(buffer, mapInfo);
+      mapInfo = this.forEach(buffer, actualFileInfo, actualEncodingInfo, mapInfo);
     }
   }
 
-  private MappedByteBuffer map(MapInfo mapInfo) throws IOException {
-    FileChannel channel = mapInfo.channel;
-    long mapStart = mapInfo.mapStart;
-    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
-    return channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+  private MappedByteBuffer map(FileInfo fileInfo, MapInfo mapInfo) throws IOException {
+    FileChannel channel = fileInfo.channel;
+    int mapSize = this.mapSize(fileInfo, mapInfo);
+    return channel.map(MapMode.READ_ONLY, mapInfo.mapStart, mapSize);
+  }
+
+  private int mapSize(FileInfo fileInfo, MapInfo mapInfo) {
+    return Math.min(Math.toIntExact(fileInfo.fileSize - mapInfo.mapStart), this.maxMapSize);
+  }
+
+  private int mapSize(FileInfo fileInfo, FastMapInfo mapInfo) {
+    return Math.min(Math.toIntExact(fileInfo.fileSize - mapInfo.mapStart), this.maxMapSize);
   }
 
   /**
@@ -256,18 +276,23 @@ public final class LineParser {
     }
   }
 
-  private MapInfo forEach(MappedByteBuffer buffer, MapInfo mapInfo) throws IOException {
-    FileChannel channel = mapInfo.channel;
-    byte[] cr = mapInfo.cr;
-    byte[] lf = mapInfo.lf;
-    byte[] crlf = mapInfo.crlf;
-    long fileSize = mapInfo.fileSize;
+  private MapInfo forEach(MappedByteBuffer buffer, FileInfo fileInfo, EncodingInfo encodingInfo, MapInfo mapInfo) throws IOException {
+    byte[] cr = encodingInfo.cr;
+    byte[] lf = encodingInfo.lf;
+    long fileSize = fileInfo.fileSize;
     long mapStart = mapInfo.mapStart;
-    LineReader reader = mapInfo.reader;
-    Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
+    LineReader reader = fileInfo.reader;
+    Consumer<Line> lineCallback =  fileInfo.lineCallback;
+    int mapSize = this.mapSize(fileInfo, mapInfo);
     if (buffer == null) {
-      buffer = this.map(mapInfo);
+      // in case of a multi byte encoding we may have to have a look at
+      // the file first in order to read the BOM in order to determine
+      // the actual encoding
+      // we don't want to map and unmap just in order to read 2 to 4 bytes
+      // so we pass the buffer to this method
+      // in this case we already have a MappedByteBuffer for the first 2 GB
+      // in all other cases we don't so we map now
+      buffer = this.map(fileInfo, mapInfo);
     }
     try {
 
@@ -313,14 +338,14 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        return new MapInfo(channel, cr, lf, crlf, fileSize, mapStart + lineStart, reader, lineCallback);
+        return new MapInfo(mapStart + lineStart);
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
       }
 
     } finally {
-      unmap(buffer);
+      unmap(buffer, fileInfo);
     }
     return null;
   }
@@ -360,15 +385,15 @@ public final class LineParser {
 
   // fast path version
   // much simpler and inlines
-  private FastMapInfo forEachFast(FastMapInfo mapInfo) throws IOException {
-    FileChannel channel = mapInfo.channel;
-    byte cr = mapInfo.cr;
-    byte lf = mapInfo.lf;
-    long fileSize = mapInfo.fileSize;
+  private FastMapInfo forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo, FastMapInfo mapInfo) throws IOException {
+    FileChannel channel = fileInfo.channel;
+    byte cr = encodingInfo.cr;
+    byte lf = encodingInfo.lf;
+    long fileSize = fileInfo.fileSize;
     long mapStart = mapInfo.mapStart;
-    LineReader reader = mapInfo.reader;
-    Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
+    LineReader reader = fileInfo.reader;
+    Consumer<Line> lineCallback =  fileInfo.lineCallback;
+    int mapSize = this.mapSize(fileInfo, mapInfo);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
@@ -411,14 +436,14 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        return new FastMapInfo(channel, cr, lf, fileSize, mapStart + lineStart, reader, lineCallback); // may result in overlapping mapping
+        return new FastMapInfo(mapStart + lineStart); // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
       }
 
     } finally {
-      unmap(buffer);
+      unmap(buffer, fileInfo);
     }
     return null;
   }
@@ -436,64 +461,71 @@ public final class LineParser {
     lineCallback.accept(line);
   }
 
-  static final class FastMapInfo {
+  static final class FileInfo {
 
     final FileChannel channel;
-    final byte cr;
-    final byte lf;
     final long fileSize;
-    final long mapStart;
     final LineReader reader;
     final Consumer<Line> lineCallback;
+    final Path path;
 
-    FastMapInfo(FileChannel channel, byte cr, byte lf, long fileSize,
-            long mapStart, LineReader reader, Consumer<Line> lineCallback) {
+    FileInfo(Path path, FileChannel channel, long fileSize, LineReader reader, Consumer<Line> lineCallback) {
+      this.path = path;
       this.channel = channel;
-      this.cr = cr;
-      this.lf = lf;
       this.fileSize = fileSize;
-      this.mapStart = mapStart;
       this.reader = reader;
       this.lineCallback = lineCallback;
     }
 
-    int mapSize() {
-      return Math.toIntExact(this.fileSize - this.mapStart);
+  }
+
+  static final class FastEncodingInfo {
+
+    final byte cr;
+    final byte lf;
+
+    FastEncodingInfo(byte cr, byte lf) {
+      this.cr = cr;
+      this.lf = lf;
+    }
+
+  }
+
+  static final class EncodingInfo {
+
+    final byte[] cr;
+    final byte[] lf;
+    final Charset cs;
+
+    EncodingInfo(Charset cs, byte[] cr, byte[] lf) {
+      this.cs = cs;
+      this.cr = cr;
+      this.lf = lf;
+    }
+
+  }
+
+  static final class FastMapInfo {
+
+    final long mapStart;
+
+    FastMapInfo(long mapStart) {
+      this.mapStart = mapStart;
     }
 
   }
 
   static final class MapInfo {
 
-    final FileChannel channel;
-    final byte[] cr;
-    final byte[] lf;
-    final byte[] crlf;
-    final long fileSize;
     final long mapStart;
-    final LineReader reader;
-    final Consumer<Line>lineCallback;
 
-    MapInfo(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf,
-            long fileSize, long mapStart, LineReader reader,
-            Consumer<Line> lineCallback) {
-      this.channel = channel;
-      this.cr = cr;
-      this.lf = lf;
-      this.crlf = crlf;
-      this.fileSize = fileSize;
+    MapInfo(long mapStart) {
       this.mapStart = mapStart;
-      this.reader = reader;
-      this.lineCallback = lineCallback;
-    }
-
-    int mapSize() {
-      return Math.toIntExact(this.fileSize - this.mapStart);
     }
 
   }
 
-  static void unmap(MappedByteBuffer buffer) throws IOException {
+  static void unmap(MappedByteBuffer buffer, FileInfo fileInfo) throws IOException {
     if (UNSAFE_INVOKE_CLEANER != null) {
       // Java 9
       try {
@@ -503,7 +535,7 @@ public final class LineParser {
       } catch (Error e) {
         throw e;
       } catch (Throwable e) {
-        throw new UnmapFailedException("could not unmap", e);
+        throw new UnmapFailedException(fileInfo.path.toString(), "could not unmap", e);
       }
     } else {
       // Java 8
@@ -515,7 +547,7 @@ public final class LineParser {
       } catch (Error e) {
         throw e;
       } catch (Throwable e) {
-        throw new UnmapFailedException("could not unmap", e);
+        throw new UnmapFailedException(fileInfo.path.toString(), "could not unmap", e);
       }
     }
   }
