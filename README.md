@@ -26,16 +26,12 @@ The performance may still be slower than a than `BufferedReader` based approach 
 
 As this project gives you a `CharSequence` instead of a `String` you may want to have a look at the [charsequences](https://github.com/marschall/charsequences) which gives you some the `String` convenience methods while avoiding allocation.
 
-Limitations
------------
-
- * doesn't handle file encodings with a BOM (UTF-16, UTF-32)
-
 Misc
 ----
 
  * the main parsing loop is likely to benefit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
  * if you're using UTF-8 with a [BOM](https://en.wikipedia.org/wiki/Byte_order_mark) then the BOM is returned as well
+ * if you're using UTF-16 with a [BOM](https://en.wikipedia.org/wiki/Byte_order_mark) then the BOM is returned as well
  * the library runs on Java 8 but is also a Java 9 module that only requires the `jdk.unsupported` module besides the `java.base` module
 
 Usage

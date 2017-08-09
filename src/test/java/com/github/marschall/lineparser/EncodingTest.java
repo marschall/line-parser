@@ -29,24 +29,30 @@ public class EncodingTest {
 
   @Test
   public void bomDecoding() throws IOException {
-    assertEquals(MESSAGE_WITH_BOM, parse("utf8-with-bom.txt", UTF_8));
+    assertEquals(MESSAGE_WITH_BOM, this.parse("utf8-with-bom.txt", UTF_8));
   }
 
   @Test
   public void noBom() throws IOException {
-    assertEquals(MESSAGE_WITHOUT_BOM, parse("utf8-no-bom.txt", UTF_8));
+    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf8-no-bom.txt", UTF_8));
+  }
 
-//    assertEquals(MESSAGE_WITHOUT_BOM, parse("utf16be-with-bom.txt", UTF_16));
-//    assertEquals(MESSAGE_WITHOUT_BOM, parse("utf16le-with-bom.txt", UTF_16));
-//
-//    assertEquals(MESSAGE_WITHOUT_BOM, parse("utf32be-with-bom.txt", Charset.forName("UTF-32")));
-//    assertEquals(MESSAGE_WITHOUT_BOM, parse("utf32le-with-bom.txt", Charset.forName("UTF-32")));
+  @Test
+  public void bomInFileBomInJava() throws IOException {
+    assertEquals(MESSAGE_WITH_BOM, this.parse("utf16be-with-bom.txt", UTF_16));
+    assertEquals(MESSAGE_WITH_BOM, this.parse("utf16le-with-bom.txt", UTF_16));
+  }
+
+  @Test
+  public void bomInFileNoBomInJava() throws IOException {
+    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32be-with-bom.txt", Charset.forName("UTF-32")));
+    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32le-with-bom.txt", Charset.forName("UTF-32")));
   }
 
   private List<String> parse(String fileName, Charset cs) throws IOException {
     Path base = Paths.get("src/test/resources/examples");
     List<String> lines  = new ArrayList<>(2);
-    parser.forEach(base.resolve(fileName), cs, line ->
+    this.parser.forEach(base.resolve(fileName), cs, line ->
       lines.add(line.getContent().toString()));
     return lines;
   }

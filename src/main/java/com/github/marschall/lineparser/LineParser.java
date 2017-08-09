@@ -12,7 +12,10 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -27,8 +30,9 @@ import java.util.function.Consumer;
  *
  * <p>Offers a fast paths for:</p>
  * <ul>
- *  <li>single byte character sets</li>
- *  <li><a href="https://en.wikipedia.org/wiki/ISO/IEC_8859-1">ISO 8859-1</a> compatible character sets</li>
+ *  <li>character sets in which CR an LF only take up a single byte</li>
+ *  <li><a href="https://en.wikipedia.org/wiki/ISO/IEC_8859-1">ISO 8859-1</a> \
+ *  compatible character sets, including <a href="https://en.wikipedia.org/wiki/ASCII">ASCII</a></li>
  * </ul>
  * <p>They can be combined for maximum performance.</p>
  *
@@ -36,10 +40,10 @@ import java.util.function.Consumer;
  * The following algorithm is used to parse files:
  * <ol>
  *  <li>map the file into memory</li>
- *  <li>encode <code>CR</code>, <code>LF</code> and <code>CR LF</code> to bytes using the give character set</li>
+ *  <li>encode <code>CR</code>, <code>LF</code> and <code>CR LF</code> to bytes using the given character set</li>
  *  <li>while not done
  *    <ol>
- *      <li>scan the file byte by byte for cr of lf</li>
+ *      <li>scan the file byte by byte for cr, crlf or lf</li>
  *      <li>create a line object and invoke the callback</li>
  *    </ol>
  *  </li>
@@ -48,8 +52,11 @@ import java.util.function.Consumer;
  * <p>If the file is larger can 2GB then it is mapped into memory multiple times.
  * This has to be done because Java does not support file mappings larger than 2GB.</p>
  *
- * <p>Unmapping the file from memory is controversial and can only be done using semi-official
- * APIs. The alternative would be to rely on finalization to close file handles.</p>
+ * <p>Unmapping the file from memory is <a href="http://bugs.java.com/view_bug.do?bug_id=4724038">controversial</a>
+ * and can only be done using semi-official APIs. The alternative would
+ * be to rely on finalization to close file handles. However this is
+ * not recommended, unreliable, unpredictable, deprecated and can
+ * introduce performance issues and issues with file locks.</p>
  *
  * <p>This class is thread safe.</p>
  *
@@ -60,6 +67,12 @@ public final class LineParser {
   private static final MethodHandle UNSAFE_INVOKE_CLEANER;
   private static final MethodHandle DIRECT_BYTE_BUFFER_CLEANER;
   private static final MethodHandle CLEANER_CLEAN;
+  // null if no VM support so make sure it's the argument to .equals()
+  private static final Charset UTF_32;
+  // null if no VM support so make sure it's the argument to .equals()
+  private static final Charset UTF_32BE;
+  // null if no VM support so make sure it's the argument to .equals()
+  private static final Charset UTF_32LE;
 
   static {
     Lookup lookup = MethodHandles.publicLookup();
@@ -99,6 +112,19 @@ public final class LineParser {
         throw new IllegalStateException("could not get cleaner clean method handle", e);
       }
       UNSAFE_INVOKE_CLEANER = null;
+    }
+
+    UTF_32 = safeLoadCharset("UTF-32");
+    UTF_32BE = safeLoadCharset("UTF-32BE");
+    UTF_32LE = safeLoadCharset("UTF-32LE");
+  }
+
+  private static Charset safeLoadCharset(String name) {
+    try {
+      return Charset.forName(name);
+    } catch (UnsupportedCharsetException e) {
+      // minimal vm without extended charsets
+      return null;
     }
   }
 
@@ -145,7 +171,7 @@ public final class LineParser {
       if (useFastPath) {
         this.forEachFast(channel, cr[0], lf[0], fileSize, reader, lineCallback);
       } else {
-        this.forEach(channel, cr, lf, crlf, fileSize, reader, lineCallback);
+        this.forEach(cs, channel, cr, lf, crlf, fileSize, reader, lineCallback);
       }
     }
   }
@@ -158,15 +184,79 @@ public final class LineParser {
     }
   }
 
-  private void forEach(FileChannel channel, byte[] cr, byte[] lf, byte[] crlf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
+  private void forEach(Charset cs, FileChannel channel, byte[] cr, byte[] lf, byte[] crlf, long fileSize, LineReader reader, Consumer<Line> lineCallback)
           throws IOException {
     MapInfo mapInfo = new MapInfo(channel, cr, lf, crlf, fileSize, 0L, reader, lineCallback);
+    MappedByteBuffer buffer;
+    if (isAmbiguous(cs)) {
+      buffer = this.map(mapInfo);
+      Charset actualCharset = this.resolveBom(cs, buffer);
+      LineReader actualReader = LineReader.forCharset(actualCharset);
+      byte[] actualCr = "\r".getBytes(actualCharset);
+      byte[] actualLf = "\n".getBytes(actualCharset);
+      byte[] actualCrlf = "\r\n".getBytes(actualCharset);
+      mapInfo = new MapInfo(channel, actualCr, actualLf, actualCrlf, fileSize, 0L, actualReader, lineCallback);
+    } else {
+      buffer = null;
+    }
     while (mapInfo != null) {
-      mapInfo = this.forEach(mapInfo);
+      mapInfo = this.forEach(buffer, mapInfo);
     }
   }
 
-  private MapInfo forEach(MapInfo mapInfo) throws IOException {
+  private MappedByteBuffer map(MapInfo mapInfo) throws IOException {
+    FileChannel channel = mapInfo.channel;
+    long mapStart = mapInfo.mapStart;
+    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
+    return channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+  }
+
+  /**
+   * Checks if the character set is ambiguous and therefore needs a BOM
+   * in order to decode.
+   */
+  private static boolean isAmbiguous(Charset cs) {
+    return cs.equals(StandardCharsets.UTF_16) || cs.equals(UTF_32);
+  }
+
+  /**
+   * Takes a character set that is ambiguous and tries to make it
+   * unambiguous by resolving the BOM.
+   */
+  private Charset resolveBom(Charset cs, MappedByteBuffer buffer) {
+    // https://en.wikipedia.org/wiki/Byte_order_mark
+    if (cs.equals(StandardCharsets.UTF_16)) {
+      if (buffer.capacity() >= 2) {
+        int firstByte = Byte.toUnsignedInt(buffer.get(0));
+        int secondByte = Byte.toUnsignedInt(buffer.get(1));
+        if ((firstByte == 0xFE) && (secondByte == 0xFF)) {
+          return StandardCharsets.UTF_16BE;
+        } else if ((firstByte == 0xFF) && (secondByte == 0xFE)) {
+          return StandardCharsets.UTF_16LE;
+        }
+      }
+      // no bom
+      return cs;
+    } else if (cs.equals(UTF_32)) {
+      if (buffer.capacity() >= 4) {
+        int firstByte = Byte.toUnsignedInt(buffer.get(0));
+        int secondByte = Byte.toUnsignedInt(buffer.get(1));
+        int thirdByte = Byte.toUnsignedInt(buffer.get(2));
+        int fourthByte = Byte.toUnsignedInt(buffer.get(3));
+        if ((firstByte == 0x00) && (secondByte == 0x00) && (thirdByte == 0xFE) && (fourthByte == 0xFF)) {
+          return Objects.requireNonNull(UTF_32BE);
+        } else if ((firstByte == 0xFF) && (secondByte == 0xFE) && (thirdByte == 0x00) && (fourthByte == 0x00)) {
+          return Objects.requireNonNull(UTF_32LE);
+        }
+      }
+      // no bom
+      return cs;
+    } else {
+      throw new IllegalArgumentException("BOM resolution not yet supported for " + cs.name());
+    }
+  }
+
+  private MapInfo forEach(MappedByteBuffer buffer, MapInfo mapInfo) throws IOException {
     FileChannel channel = mapInfo.channel;
     byte[] cr = mapInfo.cr;
     byte[] lf = mapInfo.lf;
@@ -175,8 +265,10 @@ public final class LineParser {
     long mapStart = mapInfo.mapStart;
     LineReader reader = mapInfo.reader;
     Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = (int) Math.min(fileSize - mapStart, this.maxMapSize);
-    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
+    if (buffer == null) {
+      buffer = this.map(mapInfo);
+    }
     try {
 
       int lineStart = 0; // in buffer
@@ -187,9 +279,10 @@ public final class LineParser {
       while (mapIndex < mapSize) {
         byte value = buffer.get(mapIndex);
 
-        // mapSize - mapIndex == buffer.remaining() + 1
+        // if (buffer[mapIndex] == CR)
         if (startsWithArray(value, cr, crLength, mapIndex, mapSize, buffer)) {
 
+          // if (buffer[mapIndex] == LF)
           int newlineLength = crLength;
           if (continuesWithArray(lf, lfLength, crLength, mapIndex, mapSize, buffer)) {
             newlineLength += lfLength;
@@ -201,6 +294,8 @@ public final class LineParser {
           // fix up loop variable for the next iteration
           mapIndex = lineStart = mapIndex + newlineLength;
 
+
+        // else if (buffer[mapIndex] == LF)
         } else if (startsWithArray(value, lf, lfLength, mapIndex, mapSize, buffer)) {
 
           // we found the end, read the line
@@ -232,6 +327,7 @@ public final class LineParser {
 
   private static boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
           int mapIndex, int mapSize, MappedByteBuffer buffer) {
+    // mapSize - mapIndex == buffer.remaining() + 1
     if ((value == newLine[0]) && ((newLineLength - 1) < (mapSize - mapIndex))) {
       // input starts with the first byte of a newline, but newline may be multiple bytes
       // check if the input starts with all bytes of a newline
@@ -272,7 +368,7 @@ public final class LineParser {
     long mapStart = mapInfo.mapStart;
     LineReader reader = mapInfo.reader;
     Consumer<Line> lineCallback =  mapInfo.lineCallback;
-    int mapSize = (int) Math.min(fileSize - mapStart, this.maxMapSize);
+    int mapSize = Math.min(mapInfo.mapSize(), this.maxMapSize);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
@@ -361,6 +457,10 @@ public final class LineParser {
       this.lineCallback = lineCallback;
     }
 
+    int mapSize() {
+      return Math.toIntExact(this.fileSize - this.mapStart);
+    }
+
   }
 
   static final class MapInfo {
@@ -387,6 +487,9 @@ public final class LineParser {
       this.lineCallback = lineCallback;
     }
 
+    int mapSize() {
+      return Math.toIntExact(this.fileSize - this.mapStart);
+    }
 
   }
 
