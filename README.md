@@ -11,11 +11,11 @@ line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/
 
 An `mmap()` based line parser for cases when:
 
- * the start byte position in the file of a line is required
+ * the start byte position of a line in the file is required
  * the length in bytes of a line is required
- * only a few character of every line is required
+ * only a few character of every line are required
 
-In these cases it can theoretically be more efficient than `BufferedReader` because:
+In these cases this library can theoretically be more efficient than `BufferedReader` because:
 
  * the copy operations of buffered IO are avoided
  * the allocation and resizing of an intermediate `StringBuffer` is avoided
@@ -34,10 +34,9 @@ Limitations
 Misc
 ----
 
- * all methods have been verified with [jitwatch-jarscan-maven-plugin](https://github.com/ferstl/jitwatch-jarscan-maven-plugin) to be below 325 bytecode instructions and should therefore inline
  * the main parsing loop is likely to benefit from [on-stack replacement (OSR)](http://openjdk.java.net/groups/hotspot/docs/HotSpotGlossary.html#onStackReplacement)
  * if you're using UTF-8 with a [BOM](https://en.wikipedia.org/wiki/Byte_order_mark) then the BOM is returned as well
- * the library runs on Java 8 but is also a Java 9 module that requires only the `jdk.unsupported` module besides the `java.base` module
+ * the library runs on Java 8 but is also a Java 9 module that only requires the `jdk.unsupported` module besides the `java.base` module
 
 Usage
 -----
