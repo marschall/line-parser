@@ -74,6 +74,8 @@ public final class LineParser {
   // null if no VM support so make sure it's the argument to .equals()
   private static final Charset UTF_32LE;
 
+  private static final long FILE_END = -1;
+
   static {
     Lookup lookup = MethodHandles.publicLookup();
     if (isJava9OrLater()) {
@@ -179,19 +181,19 @@ public final class LineParser {
   }
 
   private void forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo) throws IOException {
-    FastMapInfo mapInfo = new FastMapInfo(0L);
-    while (mapInfo != null) {
+    long mapInfo = 0L;
+    while (mapInfo != FILE_END) {
       mapInfo = this.forEachFast(fileInfo, encodingInfo, mapInfo);
     }
   }
 
   private void forEach(FileInfo fileInfo, EncodingInfo encodingInfo) throws IOException {
-    MapInfo mapInfo = new MapInfo(0L);
+    long mapStart = 0L;
     FileInfo actualFileInfo;
     EncodingInfo actualEncodingInfo;
     MappedByteBuffer buffer;
     if (isAmbiguous(encodingInfo.cs)) {
-      buffer = this.map(fileInfo, mapInfo);
+      buffer = this.map(fileInfo, mapStart);
       Charset actualCharset;
       try {
         actualCharset = this.resolveBom(encodingInfo.cs, buffer);
@@ -212,23 +214,19 @@ public final class LineParser {
       actualFileInfo = fileInfo;
       buffer = null;
     }
-    while (mapInfo != null) {
-      mapInfo = this.forEach(buffer, actualFileInfo, actualEncodingInfo, mapInfo);
+    while (mapStart != FILE_END) {
+      mapStart = this.forEach(buffer, actualFileInfo, actualEncodingInfo, mapStart);
     }
   }
 
-  private MappedByteBuffer map(FileInfo fileInfo, MapInfo mapInfo) throws IOException {
+  private MappedByteBuffer map(FileInfo fileInfo,  long mapStart) throws IOException {
     FileChannel channel = fileInfo.channel;
-    int mapSize = this.mapSize(fileInfo, mapInfo);
-    return channel.map(MapMode.READ_ONLY, mapInfo.mapStart, mapSize);
+    int mapSize = this.mapSize(fileInfo, mapStart);
+    return channel.map(MapMode.READ_ONLY, mapStart, mapSize);
   }
 
-  private int mapSize(FileInfo fileInfo, MapInfo mapInfo) {
-    return Math.min(Math.toIntExact(fileInfo.fileSize - mapInfo.mapStart), this.maxMapSize);
-  }
-
-  private int mapSize(FileInfo fileInfo, FastMapInfo mapInfo) {
-    return Math.min(Math.toIntExact(fileInfo.fileSize - mapInfo.mapStart), this.maxMapSize);
+  private int mapSize(FileInfo fileInfo, long mapStart) {
+    return Math.min(Math.toIntExact(fileInfo.fileSize - mapStart), this.maxMapSize);
   }
 
   /**
@@ -276,14 +274,13 @@ public final class LineParser {
     }
   }
 
-  private MapInfo forEach(MappedByteBuffer buffer, FileInfo fileInfo, EncodingInfo encodingInfo, MapInfo mapInfo) throws IOException {
+  private long forEach(MappedByteBuffer buffer, FileInfo fileInfo, EncodingInfo encodingInfo, long mapStart) throws IOException {
     byte[] cr = encodingInfo.cr;
     byte[] lf = encodingInfo.lf;
     long fileSize = fileInfo.fileSize;
-    long mapStart = mapInfo.mapStart;
     LineReader reader = fileInfo.reader;
     Consumer<Line> lineCallback =  fileInfo.lineCallback;
-    int mapSize = this.mapSize(fileInfo, mapInfo);
+    int mapSize = this.mapSize(fileInfo, mapStart);
     if (buffer == null) {
       // in case of a multi byte encoding we may have to have a look at
       // the file first in order to read the BOM in order to determine
@@ -292,7 +289,7 @@ public final class LineParser {
       // so we pass the buffer to this method
       // in this case we already have a MappedByteBuffer for the first 2 GB
       // in all other cases we don't so we map now
-      buffer = this.map(fileInfo, mapInfo);
+      buffer = this.map(fileInfo, mapStart);
     }
     try {
 
@@ -338,7 +335,7 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        return new MapInfo(mapStart + lineStart);
+        return mapStart + lineStart;
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
@@ -347,7 +344,7 @@ public final class LineParser {
     } finally {
       unmap(buffer, fileInfo);
     }
-    return null;
+    return FILE_END;
   }
 
   private static boolean startsWithArray(byte value, byte[] newLine, int newLineLength,
@@ -385,15 +382,14 @@ public final class LineParser {
 
   // fast path version
   // much simpler and inlines
-  private FastMapInfo forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo, FastMapInfo mapInfo) throws IOException {
+  private long forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo, long mapStart) throws IOException {
     FileChannel channel = fileInfo.channel;
     byte cr = encodingInfo.cr;
     byte lf = encodingInfo.lf;
     long fileSize = fileInfo.fileSize;
-    long mapStart = mapInfo.mapStart;
     LineReader reader = fileInfo.reader;
     Consumer<Line> lineCallback =  fileInfo.lineCallback;
-    int mapSize = this.mapSize(fileInfo, mapInfo);
+    int mapSize = this.mapSize(fileInfo, mapStart);
     MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
     try {
 
@@ -436,7 +432,7 @@ public final class LineParser {
         // we could not map the entire file
         // map from the start of the last line
         // and continue reading from there
-        return new FastMapInfo(mapStart + lineStart); // may result in overlapping mapping
+        return mapStart + lineStart; // may result in overlapping mapping
       } else if (lineStart < mapSize) {
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
@@ -445,7 +441,7 @@ public final class LineParser {
     } finally {
       unmap(buffer, fileInfo);
     }
-    return null;
+    return FILE_END;
   }
 
   private static void readLine(int lineStart, long mapStart, int mapIndex,
@@ -501,26 +497,6 @@ public final class LineParser {
       this.cs = cs;
       this.cr = cr;
       this.lf = lf;
-    }
-
-  }
-
-  static final class FastMapInfo {
-
-    final long mapStart;
-
-    FastMapInfo(long mapStart) {
-      this.mapStart = mapStart;
-    }
-
-  }
-
-  static final class MapInfo {
-
-    final long mapStart;
-
-    MapInfo(long mapStart) {
-      this.mapStart = mapStart;
     }
 
   }
