@@ -194,17 +194,18 @@ public final class LineParser {
     MappedByteBuffer buffer;
     if (isAmbiguous(encodingInfo.cs)) {
       buffer = this.map(fileInfo, mapStart);
-      Charset actualCharset;
+      BomResolutionResult result;
       try {
-        actualCharset = this.resolveBom(encodingInfo.cs, buffer);
+        result = this.resolveBom(encodingInfo.cs, buffer);
         // normally unmapping happens in forEach() we when we get
         // an unchecked exceptio or error we need to do it here
       } catch (Error | RuntimeException e) {
         unmap(buffer, fileInfo);
         throw e;
       }
+      Charset actualCharset = result.cs;
+//      mapStart = result.mapStart;
       LineReader actualReader = LineReader.forCharset(actualCharset);
-      // TODO skip BOM by incrementing map start
       byte[] actualCr = "\r".getBytes(actualCharset);
       byte[] actualLf = "\n".getBytes(actualCharset);
       actualEncodingInfo = new EncodingInfo(actualCharset, actualCr, actualLf);
@@ -241,20 +242,20 @@ public final class LineParser {
    * Takes a character set that is ambiguous and tries to make it
    * unambiguous by resolving the BOM.
    */
-  private Charset resolveBom(Charset cs, MappedByteBuffer buffer) {
+  private BomResolutionResult resolveBom(Charset cs, MappedByteBuffer buffer) {
     // https://en.wikipedia.org/wiki/Byte_order_mark
     if (cs.equals(StandardCharsets.UTF_16)) {
       if (buffer.capacity() >= 2) {
         int firstByte = Byte.toUnsignedInt(buffer.get(0));
         int secondByte = Byte.toUnsignedInt(buffer.get(1));
         if ((firstByte == 0xFE) && (secondByte == 0xFF)) {
-          return StandardCharsets.UTF_16BE;
+          return new BomResolutionResult(StandardCharsets.UTF_16BE, 2);
         } else if ((firstByte == 0xFF) && (secondByte == 0xFE)) {
-          return StandardCharsets.UTF_16LE;
+          return new BomResolutionResult(StandardCharsets.UTF_16LE, 2);
         }
       }
       // no bom
-      return cs;
+      return new BomResolutionResult(cs, 0);
     } else if (cs.equals(UTF_32)) {
       if (buffer.capacity() >= 4) {
         int firstByte = Byte.toUnsignedInt(buffer.get(0));
@@ -262,13 +263,13 @@ public final class LineParser {
         int thirdByte = Byte.toUnsignedInt(buffer.get(2));
         int fourthByte = Byte.toUnsignedInt(buffer.get(3));
         if ((firstByte == 0x00) && (secondByte == 0x00) && (thirdByte == 0xFE) && (fourthByte == 0xFF)) {
-          return Objects.requireNonNull(UTF_32BE);
+          return new BomResolutionResult(Objects.requireNonNull(UTF_32BE), 4);
         } else if ((firstByte == 0xFF) && (secondByte == 0xFE) && (thirdByte == 0x00) && (fourthByte == 0x00)) {
-          return Objects.requireNonNull(UTF_32LE);
+          return new BomResolutionResult(Objects.requireNonNull(UTF_32LE), 4);
         }
       }
       // no bom
-      return cs;
+      return new BomResolutionResult(cs, 0);
     } else {
       throw new IllegalArgumentException("BOM resolution not yet supported for " + cs.name());
     }
@@ -337,6 +338,7 @@ public final class LineParser {
         // and continue reading from there
         return mapStart + lineStart;
       } else if (lineStart < mapSize) {
+        // we're at the end of the file
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
       }
@@ -434,6 +436,7 @@ public final class LineParser {
         // and continue reading from there
         return mapStart + lineStart; // may result in overlapping mapping
       } else if (lineStart < mapSize) {
+        // we're at the end of the file
         // if the last line didn't end in a newline read it now
         readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
       }
@@ -497,6 +500,18 @@ public final class LineParser {
       this.cs = cs;
       this.cr = cr;
       this.lf = lf;
+    }
+
+  }
+
+  static final class BomResolutionResult {
+
+    final Charset cs;
+    final long mapStart;
+
+    BomResolutionResult(Charset cs, long mapStart) {
+      this.cs = cs;
+      this.mapStart = mapStart;
     }
 
   }
