@@ -18,7 +18,7 @@ import org.junit.Test;
 public class EncodingTest {
 
   private static final List<String> MESSAGE_WITHOUT_BOM = Arrays.asList("a", "\u00E4", "\u1F600");
-  private static final List<String> MESSAGE_WITH_BOM = Arrays.asList("\uFEFFa", "\u00E4", "\u1F600");
+  private static final List<String> MESSAGE_WITH_BOM = Arrays.asList("\uFEFF" + "a", "\u00E4", "\u1F600");
 
   private LineParser parser;
 
@@ -45,8 +45,9 @@ public class EncodingTest {
 
   @Test
   public void bomInFileNoBomInJava() throws IOException {
-    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32be-with-bom.txt", Charset.forName("UTF-32")));
-    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32le-with-bom.txt", Charset.forName("UTF-32")));
+    Charset utf32 = Charset.forName("UTF-32");
+    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32be-with-bom.txt", utf32));
+    assertEquals(MESSAGE_WITHOUT_BOM, this.parse("utf32le-with-bom.txt", utf32));
   }
 
   private List<String> parse(String fileName, Charset cs) throws IOException {

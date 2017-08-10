@@ -3,6 +3,7 @@ package com.github.marschall.lineparser;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  * {@link CharSequence} for Latin-1 compatible input that needs no decoding.
@@ -21,6 +22,7 @@ final class ByteBufferCharSequence implements CharSequence {
   }
 
   ByteBufferCharSequence(ByteBuffer buffer, int offset, int length) {
+    Objects.requireNonNull(buffer);
     this.buffer = buffer;
     this.offset = offset;
     this.length = length;
