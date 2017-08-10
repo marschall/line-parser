@@ -31,8 +31,9 @@ import java.util.function.Consumer;
  * <p>Offers a fast paths for:</p>
  * <ul>
  *  <li>character sets in which CR an LF only take up a single byte</li>
- *  <li><a href="https://en.wikipedia.org/wiki/ISO/IEC_8859-1">ISO 8859-1</a> \
+ *  <li><a href="https://en.wikipedia.org/wiki/ISO/IEC_8859-1">ISO 8859-1</a>
  *  compatible character sets, including <a href="https://en.wikipedia.org/wiki/ASCII">ASCII</a></li>
+ *  <li><a href="https://en.wikipedia.org/wiki/UTF-16">UTF-16</a></li>
  * </ul>
  * <p>They can be combined for maximum performance.</p>
  *

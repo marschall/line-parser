@@ -2,7 +2,7 @@ package com.github.marschall.lineparser;
 
 import java.nio.CharBuffer;
 
-public class CharBufferCharSequence implements CharSequence {
+class CharBufferCharSequence implements CharSequence {
 
   private final CharBuffer buffer;
   private final int offset;

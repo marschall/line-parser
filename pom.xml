@@ -54,6 +54,20 @@
       <version>4.12</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <version>${jmh.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-generator-annprocess</artifactId>
+      <version>${jmh.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <distributionManagement>
@@ -126,26 +140,9 @@
           </execution>
         </executions>
       </plugin>
-      <!-- fails with jigsaw
-      <plugin>
-        <groupId>com.github.ferstl</groupId>
-        <artifactId>jitwatch-jarscan-maven-plugin</artifactId>
-        <configuration>
-          <analyzeDependencies>false</analyzeDependencies>
-        </configuration>
-        <executions>
-          <execution>
-            <id>max-method-size</id>
-            <goals>
-              <goal>maxMethodSize</goal>
-            </goals>
-            <configuration>
-              <limit>325</limit>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      -->
+      <!-- fails with jigsaw <plugin> <groupId>com.github.ferstl</groupId> <artifactId>jitwatch-jarscan-maven-plugin</artifactId> <configuration> <analyzeDependencies>false</analyzeDependencies> 
+        </configuration> <executions> <execution> <id>max-method-size</id> <goals> <goal>maxMethodSize</goal> </goals> <configuration> <limit>325</limit> </configuration> 
+        </execution> </executions> </plugin> -->
       <plugin>
         <artifactId>maven-release-plugin</artifactId>
         <configuration>
@@ -153,9 +150,30 @@
           <arguments>-Pdeploy-to-sonatype-oss</arguments>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <descriptors>
+            <descriptor>src/main/assembly/jar-with-test-dependencies.xml</descriptor>
+          </descriptors>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>3.0.0</version>
+        </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.4</version>
@@ -226,8 +244,7 @@
           <artifactId>jitwatch-jarscan-maven-plugin</artifactId>
           <version>1.1</version>
         </plugin>
-        <!--This plugin's configuration is used to store Eclipse m2e settings 
-          only. It has no influence on the Maven build itself. -->
+        <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself. -->
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
           <artifactId>lifecycle-mapping</artifactId>
@@ -290,8 +307,7 @@
               <execution>
                 <id>default-compile</id>
                 <configuration>
-                  <!-- compile everything to ensure module-info contains 
-                    right entries -->
+                  <!-- compile everything to ensure module-info contains right entries -->
                   <!-- required when JAVA_HOME is JDK 8 or below -->
                   <jdkToolchain>
                     <version>9</version>
@@ -359,6 +375,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>
+    <jmh.version>1.19</jmh.version>
   </properties>
 
 </project>
