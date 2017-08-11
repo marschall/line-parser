@@ -55,6 +55,16 @@ public class CharArrayCharSequenceTest {
   }
 
   @Test
+  public void prefixChars() {
+    assertArrayEquals("ab".chars().toArray(), this.prefixSubSequence.chars().toArray());
+  }
+
+  @Test
+  public void prefixCodePoints() {
+    assertArrayEquals("ab".codePoints().toArray(), this.prefixSubSequence.codePoints().toArray());
+  }
+
+  @Test
   public void testSubSequenceToString() {
     assertEquals("bc", this.subSequence.toString());
     assertEquals("bc", this.subSequence.toString());
@@ -72,7 +82,17 @@ public class CharArrayCharSequenceTest {
   }
 
   @Test
-  public void subsequenceSubsequence() {
+  public void subSequenceChars() {
+    assertArrayEquals("bc".chars().toArray(), this.subSequence.chars().toArray());
+  }
+
+  @Test
+  public void subSequencePoints() {
+    assertArrayEquals("bc".codePoints().toArray(), this.subSequence.codePoints().toArray());
+  }
+
+  @Test
+  public void subSequenceSubSequence() {
     assertEquals("b", this.prefixSubSequence.subSequence(1, 2).toString());
     assertEquals("b", this.subSequence.subSequence(0, 1).toString());
   }

@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.MalformedInputException;
 import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 abstract class Utf16CharSequence implements CharSequence {
 
@@ -52,5 +54,13 @@ abstract class Utf16CharSequence implements CharSequence {
     // divide by 2
     return this.byteLength >> 1;
   }
+
+  @Override
+  public IntStream chars() {
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
+  }
+
+  // we use the default implementation for #codePoints because some chars
+  // may be surrogates
 
 }

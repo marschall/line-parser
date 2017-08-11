@@ -1,6 +1,8 @@
 package com.github.marschall.lineparser;
 
 import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 final class CharArrayCharSequence implements CharSequence {
 
@@ -41,6 +43,13 @@ final class CharArrayCharSequence implements CharSequence {
     return new CharArrayFullSubSequence(this.array, start, end - start);
   }
 
+  @Override
+  public IntStream chars() {
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
+  }
+
+  // we use the default implementation for #codePoints because some chars
+  // may be surrogates
 
 }
 
@@ -89,6 +98,14 @@ final class CharArrayPrefixSubSequence implements CharSequence {
     return new CharArrayFullSubSequence(this.array, start, end - start);
   }
 
+  @Override
+  public IntStream chars() {
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
+  }
+
+  // we use the default implementation for #codePoints because some chars
+  // may be surrogates
+
 }
 
 
@@ -134,5 +151,13 @@ final class CharArrayFullSubSequence implements CharSequence {
     }
     return new CharArrayFullSubSequence(this.array, this.offset + start, end - start);
   }
+
+  @Override
+  public IntStream chars() {
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
+  }
+
+  // we use the default implementation for #codePoints because some chars
+  // may be surrogates
 
 }

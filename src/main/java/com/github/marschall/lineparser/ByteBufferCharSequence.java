@@ -4,6 +4,8 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 /**
  * {@link CharSequence} for Latin-1 compatible input that needs no decoding.
@@ -65,6 +67,17 @@ final class ByteBufferCharSequence implements CharSequence {
       throw new IndexOutOfBoundsException();
     }
     return new ByteBufferCharSequence(this.buffer, this.offset + start, end - start);
+  }
+
+  @Override
+  public IntStream chars() {
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
+  }
+
+  @Override
+  public IntStream codePoints() {
+    // since we're Latin-1 compatible every char is a single code point
+    return StreamSupport.intStream(new CharSequenceSpliterator(this), false);
   }
 
 }
