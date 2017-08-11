@@ -1,5 +1,6 @@
 package com.github.marschall.lineparser;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
@@ -11,7 +12,7 @@ import org.junit.Test;
 public class ByteBufferCharSequenceTest {
 
   private String string;
-  private CharSequence charSequence;
+  private CharSequence sequence;
 
   @Before
   public void setUp() {
@@ -25,34 +26,34 @@ public class ByteBufferCharSequenceTest {
     ByteBuffer buffer = enlargedBuffer.slice();
     enlargedBuffer.position(0).limit(enlargedBuffer.capacity());
 
-    this.charSequence = new ByteBufferCharSequence(buffer);
+    this.sequence = new ByteBufferCharSequence(buffer);
   }
 
   @Test
   public void length() {
-    assertEquals(this.string.length(), this.charSequence.length());
+    assertEquals(this.string.length(), this.sequence.length());
   }
 
   @Test
   public void charAt() {
     for (int i = 0; i < this.string.length(); ++i) {
-      assertEquals(this.string.charAt(i), this.charSequence.charAt(i));
+      assertEquals(this.string.charAt(i), this.sequence.charAt(i));
     }
   }
 
   @Test
   public void testToString() {
-    assertEquals(this.string, this.charSequence.toString());
+    assertEquals(this.string, this.sequence.toString());
   }
 
   @Test
   public void subSequence() {
     int length = this.string.length();
     for (int i = 0; i <= length; ++i) {
-      assertEquals(this.string.substring(i, length), this.charSequence.subSequence(i, length).toString());
+      assertEquals(this.string.substring(i, length), this.sequence.subSequence(i, length).toString());
     }
     for (int i = 0; i <= length; ++i) {
-      assertEquals(this.string.substring(0, length - i), this.charSequence.subSequence(0, length - i).toString());
+      assertEquals(this.string.substring(0, length - i), this.sequence.subSequence(0, length - i).toString());
     }
   }
 
@@ -73,6 +74,16 @@ public class ByteBufferCharSequenceTest {
     CharSequence directSequence = new ByteBufferCharSequence(buffer);
 
     assertEquals(this.string, directSequence.toString());
+  }
+
+  @Test
+  public void chars() {
+    assertArrayEquals(this.string.chars().toArray(), this.sequence.chars().toArray());
+  }
+
+  @Test
+  public void codePoints() {
+    assertArrayEquals(this.string.codePoints().toArray(), this.sequence.codePoints().toArray());
   }
 
 }

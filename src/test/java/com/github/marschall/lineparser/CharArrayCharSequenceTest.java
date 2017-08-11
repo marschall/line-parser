@@ -1,5 +1,6 @@
 package com.github.marschall.lineparser;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Before;
@@ -74,6 +75,16 @@ public class CharArrayCharSequenceTest {
   public void subsequenceSubsequence() {
     assertEquals("b", this.prefixSubSequence.subSequence(1, 2).toString());
     assertEquals("b", this.subSequence.subSequence(0, 1).toString());
+  }
+
+  @Test
+  public void chars() {
+    assertArrayEquals("abc".chars().toArray(), this.sequence.chars().toArray());
+  }
+
+  @Test
+  public void codePoints() {
+    assertArrayEquals("abc".codePoints().toArray(), this.sequence.codePoints().toArray());
   }
 
 }

@@ -1,5 +1,6 @@
 package com.github.marschall.lineparser;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -67,6 +68,16 @@ public class Utf16Test {
   @Test
   public void subSequence() {
     assertEquals(S.substring(1, S.length() - 2), this.sequence.subSequence(1, this.sequence.length() - 2).toString());
+  }
+
+  @Test
+  public void chars() {
+    assertArrayEquals(S.chars().toArray(), this.sequence.chars().toArray());
+  }
+
+  @Test
+  public void codePoints() {
+    assertArrayEquals(S.codePoints().toArray(), this.sequence.codePoints().toArray());
   }
 
 }
