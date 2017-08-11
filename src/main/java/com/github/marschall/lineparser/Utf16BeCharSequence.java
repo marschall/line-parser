@@ -2,16 +2,17 @@ package com.github.marschall.lineparser;
 
 import static java.nio.charset.StandardCharsets.UTF_16BE;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 final class Utf16BeCharSequence extends Utf16CharSequence {
 
-  Utf16BeCharSequence(ByteBuffer buffer) {
+  Utf16BeCharSequence(ByteBuffer buffer) throws IOException {
     super(buffer);
   }
 
-  Utf16BeCharSequence(ByteBuffer buffer, int offset, int byteLength) {
+  Utf16BeCharSequence(ByteBuffer buffer, int offset, int byteLength) throws IOException {
     super(buffer, offset, byteLength);
   }
 

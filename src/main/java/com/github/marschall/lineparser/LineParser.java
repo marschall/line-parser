@@ -449,7 +449,7 @@ public final class LineParser {
   }
 
   private static void readLine(int lineStart, long mapStart, int mapIndex,
-          MappedByteBuffer buffer, LineReader reader, Consumer<Line> lineCallback) {
+          MappedByteBuffer buffer, LineReader reader, Consumer<Line> lineCallback) throws IOException {
 
     // read the current line into a CharSequence
     // create a Line object

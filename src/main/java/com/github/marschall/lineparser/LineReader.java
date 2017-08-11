@@ -5,6 +5,7 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_16BE;
 import static java.nio.charset.StandardCharsets.UTF_16LE;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
@@ -26,7 +27,7 @@ interface LineReader {
    * @param length the length of the line in bytes
    * @return the line in characters
    */
-  CharSequence readLine(ByteBuffer buffer, int start, int length);
+  CharSequence readLine(ByteBuffer buffer, int start, int length) throws IOException;
 
 
   /**

@@ -1,5 +1,6 @@
 package com.github.marschall.lineparser;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -27,7 +28,7 @@ final class DecodingLineReader implements LineReader {
    * {@inheritDoc}
    */
   @Override
-  public CharSequence readLine(ByteBuffer buffer, int start, int length) {
+  public CharSequence readLine(ByteBuffer buffer, int start, int length) throws IOException {
     // reset the buffer limit
     buffer.position(start).limit(start + length);
     this.decode(buffer);
@@ -47,7 +48,7 @@ final class DecodingLineReader implements LineReader {
     return this.out;
   }
 
-  private void decode(ByteBuffer in) {
+  private void decode(ByteBuffer in) throws IOException {
     int originalPosition = in.position();
     this.out.clear();
     CoderResult result = this.decoder.decode(in, this.out, true);
@@ -61,6 +62,8 @@ final class DecodingLineReader implements LineReader {
       this.out = CharBuffer.allocate(newCapacity);
       in.position(originalPosition);
       this.decode(in);
+    } else if (result.isError()) {
+      result.throwException();
     } else {
       this.out.flip();
     }
