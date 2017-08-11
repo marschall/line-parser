@@ -228,7 +228,7 @@ public final class LineParser {
   }
 
   private int mapSize(FileInfo fileInfo, long mapStart) {
-    return Math.min(Math.toIntExact(fileInfo.fileSize - mapStart), this.maxMapSize);
+    return Math.toIntExact(Math.min(fileInfo.fileSize - mapStart, this.maxMapSize));
   }
 
   /**
