@@ -3,6 +3,7 @@ package com.github.marschall.lineparser;
 import static java.nio.charset.StandardCharsets.UTF_16LE;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
@@ -36,7 +37,11 @@ final class Utf16LeCharSequence extends Utf16CharSequence {
     if ((start < 0) || (start > this.length()) || (start > end) || (end > this.length())) {
       throw new IndexOutOfBoundsException();
     }
-    return new ByteBufferCharSequence(this.buffer, this.offset + (start * 2), (end - start) * 2);
+    try {
+      return new Utf16LeCharSequence(this.buffer, this.offset + (start * 2), (end - start) * 2);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
 }

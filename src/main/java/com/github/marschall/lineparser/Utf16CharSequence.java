@@ -1,7 +1,5 @@
 package com.github.marschall.lineparser;
 
-import static java.nio.charset.StandardCharsets.UTF_16BE;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -10,10 +8,10 @@ import java.util.Objects;
 
 abstract class Utf16CharSequence implements CharSequence {
 
-  final ByteBuffer buffer;
-  final int offset;
-  final int byteLength;
-  String stringValue;
+  protected final ByteBuffer buffer;
+  protected final int offset;
+  protected final int byteLength;
+  private String stringValue;
 
   Utf16CharSequence(ByteBuffer buffer) throws IOException {
     this(buffer, 0, buffer.capacity());
@@ -47,13 +45,12 @@ abstract class Utf16CharSequence implements CharSequence {
     return this.stringValue;
   }
 
-  Charset getCharset() {
-    return UTF_16BE;
-  }
+  abstract Charset getCharset();
 
   @Override
   public int length() {
-    return this.byteLength * 2;
+    // divide by 2
+    return this.byteLength >> 1;
   }
 
 }
