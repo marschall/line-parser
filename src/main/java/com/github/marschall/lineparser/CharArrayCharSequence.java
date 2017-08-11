@@ -132,7 +132,7 @@ final class CharArrayFullSubSequence implements CharSequence {
     if ((start < 0) || (start > this.count) || (start > end) || (end > this.count)) {
       throw new IndexOutOfBoundsException();
     }
-    return new CharArrayFullSubSequence(this.array, start, end - start);
+    return new CharArrayFullSubSequence(this.array, this.offset + start, end - start);
   }
 
 }

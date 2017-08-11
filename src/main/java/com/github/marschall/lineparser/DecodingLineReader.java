@@ -14,14 +14,20 @@ final class DecodingLineReader implements LineReader {
 
   private final CharsetDecoder decoder;
   private CharBuffer out;
+  private char[] array;
 
   DecodingLineReader(Charset charset, int bufferSize) {
     this.decoder = charset.newDecoder();
-    this.out = CharBuffer.allocate(bufferSize);
+    this.allocateBuffer(bufferSize);
   }
 
   DecodingLineReader(Charset charset) {
     this(charset, 2048);
+  }
+
+  private void allocateBuffer(int bufferSize) {
+    this.array = new char[bufferSize];
+    this.out = CharBuffer.wrap(this.array);
   }
 
   /**
@@ -34,9 +40,13 @@ final class DecodingLineReader implements LineReader {
     this.decode(buffer);
     // undo buffer limit, position doesn't matter because we only do absolute gets
     buffer.limit(buffer.capacity());
-    // CharBufferCharSequence could be used, more memory usage and indirection initially
-    // but less after a few #subSequence calls
-    return this.out;
+
+    // use the backing array of the CharBuffer
+    if (this.out.limit() == this.array.length) {
+      return new CharArrayCharSequence(this.array);
+    } else {
+      return new CharArrayPrefixSubSequence(this.array, this.out.limit());
+    }
   }
 
   /**
@@ -59,7 +69,7 @@ final class DecodingLineReader implements LineReader {
       // using the line length in bytes would wasteful for UTF-16 or UTF-32
       // we could get creative with #averageCharsPerByte and #maxCharsPerByte
       // but would have to track if we got it wrong
-      this.out = CharBuffer.allocate(newCapacity);
+      this.allocateBuffer(newCapacity);
       in.position(originalPosition);
       this.decode(in);
     } else if (result.isError()) {

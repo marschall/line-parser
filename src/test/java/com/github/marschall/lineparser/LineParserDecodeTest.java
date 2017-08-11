@@ -21,14 +21,14 @@ public class LineParserDecodeTest {
     DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
     CharBuffer charBuffer = reader.getOut();
 
-    assertSame(charBuffer, reader.readLine(byteBuffer, 0, 3));
     assertEquals("aaa", reader.readLine(byteBuffer, 0, 3).toString());
+    assertSame(charBuffer, reader.getOut());
 
-    assertSame(charBuffer, reader.readLine(byteBuffer, 3, 3));
     assertEquals("bbb", reader.readLine(byteBuffer, 3, 3).toString());
+    assertSame(charBuffer, reader.getOut());
 
-    assertSame(charBuffer, reader.readLine(byteBuffer, 6, 3));
     assertEquals("ccc", reader.readLine(byteBuffer, 6, 3).toString());
+    assertSame(charBuffer, reader.getOut());
   }
 
   @Test
@@ -37,15 +37,15 @@ public class LineParserDecodeTest {
     DecodingLineReader reader = new DecodingLineReader(US_ASCII, 3);
     CharBuffer charBuffer = reader.getOut();
 
-    assertSame(charBuffer, reader.readLine(byteBuffer, 0, 3));
     assertEquals("aaa", reader.readLine(byteBuffer, 0, 3).toString());
+    assertSame(charBuffer, reader.getOut());
 
-    CharBuffer bResult = (CharBuffer) reader.readLine(byteBuffer, 3, 4);
-    assertNotSame(charBuffer, bResult);
     assertEquals("bbbb", reader.readLine(byteBuffer, 3, 4).toString());
+    assertNotSame(charBuffer, reader.getOut());
 
-    assertSame(bResult, reader.readLine(byteBuffer, 7, 4));
+    charBuffer = reader.getOut();
     assertEquals("cccc", reader.readLine(byteBuffer, 7, 4).toString());
+    assertSame(charBuffer, reader.getOut());
   }
 
   @Test
