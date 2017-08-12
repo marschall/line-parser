@@ -16,6 +16,8 @@ final class CharArrayCharSequence implements CharSequence {
 
   @Override
   public String toString() {
+    // REVIEW caching the sting value pushes the object size from 16 to 24 bytes
+    // maybe not worth it
     if (this.stringValue == null) {
       this.stringValue = new String(this.array);
     }
