@@ -38,9 +38,19 @@ final class CharArrayCharSequence implements CharSequence {
       throw new IndexOutOfBoundsException();
     }
     if (start == 0) {
+      if (end == 0) {
+        // avoid allocation
+        return "";
+      }
       return new CharArrayPrefixSubSequence(this.array, end);
     }
-    return new CharArrayFullSubSequence(this.array, start, end - start);
+
+    int newLength = end - start;
+    if (newLength == 0) {
+      // avoid allocation
+      return "";
+    }
+    return new CharArrayFullSubSequence(this.array, start, newLength);
   }
 
   @Override
@@ -93,9 +103,19 @@ final class CharArrayPrefixSubSequence implements CharSequence {
       throw new IndexOutOfBoundsException();
     }
     if (start == 0) {
+      if (end == 0) {
+        // avoid allocation
+        return "";
+      }
       return new CharArrayPrefixSubSequence(this.array, end);
     }
-    return new CharArrayFullSubSequence(this.array, start, end - start);
+
+    int newLength = end - start;
+    if (newLength == 0) {
+      // avoid allocation
+      return "";
+    }
+    return new CharArrayFullSubSequence(this.array, start, newLength);
   }
 
   @Override
@@ -149,7 +169,13 @@ final class CharArrayFullSubSequence implements CharSequence {
     if ((start < 0) || (start > this.count) || (start > end) || (end > this.count)) {
       throw new IndexOutOfBoundsException();
     }
-    return new CharArrayFullSubSequence(this.array, this.offset + start, end - start);
+
+    int newLength = end - start;
+    if (newLength == 0) {
+      // avoid allocation
+      return "";
+    }
+    return new CharArrayFullSubSequence(this.array, this.offset + start, newLength);
   }
 
   @Override

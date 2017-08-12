@@ -38,7 +38,12 @@ final class Utf16LeCharSequence extends Utf16CharSequence {
       throw new IndexOutOfBoundsException();
     }
     try {
-      return new Utf16LeCharSequence(this.buffer, this.offset + (start * 2), (end - start) * 2);
+      int newLength = (end - start) * 2;
+      if (newLength == 0) {
+        // avoid allocation
+        return "";
+      }
+      return new Utf16LeCharSequence(this.buffer, this.offset + (start * 2), newLength);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

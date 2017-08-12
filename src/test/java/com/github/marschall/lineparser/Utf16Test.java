@@ -68,6 +68,7 @@ public class Utf16Test {
   @Test
   public void subSequence() {
     assertEquals(S.substring(1, S.length() - 2), this.sequence.subSequence(1, this.sequence.length() - 2).toString());
+    assertEquals("", this.sequence.subSequence(0, 0).toString());
   }
 
   @Test

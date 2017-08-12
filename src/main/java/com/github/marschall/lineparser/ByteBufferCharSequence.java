@@ -66,7 +66,12 @@ final class ByteBufferCharSequence implements CharSequence {
     if ((start < 0) || (start > this.length) || (start > end) || (end > this.length)) {
       throw new IndexOutOfBoundsException();
     }
-    return new ByteBufferCharSequence(this.buffer, this.offset + start, end - start);
+    int newLength = end - start;
+    if (newLength == 0) {
+      // avoid allocation
+      return "";
+    }
+    return new ByteBufferCharSequence(this.buffer, this.offset + start, newLength);
   }
 
   @Override

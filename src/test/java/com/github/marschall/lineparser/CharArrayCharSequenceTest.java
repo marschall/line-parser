@@ -107,4 +107,15 @@ public class CharArrayCharSequenceTest {
     assertArrayEquals("abc".codePoints().toArray(), this.sequence.codePoints().toArray());
   }
 
+  @Test
+  public void emptySubSequence() {
+    assertEquals("", this.sequence.subSequence(0, 0).toString());
+    assertEquals("", this.subSequence.subSequence(0, 0).toString());
+    assertEquals("", this.prefixSubSequence.subSequence(0, 0).toString());
+
+    assertEquals("", this.sequence.subSequence(1, 1).toString());
+    assertEquals("", this.subSequence.subSequence(1, 1).toString());
+    assertEquals("", this.prefixSubSequence.subSequence(1, 1).toString());
+  }
+
 }
