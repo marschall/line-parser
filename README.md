@@ -1,4 +1,4 @@
-line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser) [![Javadocs](http://www.javadoc.io/badge/com.github.marschall/line-parser.svg)](http://www.javadoc.io/doc/com.github.marschall/line-parser) [![Build Status](https://travis-ci.org/marschall/line-parser.svg?branch=master)](https://travis-ci.org/marschall/line-parser)
+line-parser  [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.marschall/line-parser) [![Javadocs](https://www.javadoc.io/badge/com.github.marschall/line-parser.svg)](https://www.javadoc.io/doc/com.github.marschall/line-parser) [![Build Status](https://travis-ci.org/marschall/line-parser.svg?branch=master)](https://travis-ci.org/marschall/line-parser)
 ===========
 
 ```xml
