@@ -2,12 +2,6 @@ package com.github.marschall.lineparser;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
@@ -65,9 +59,6 @@ import java.util.function.Consumer;
  */
 public final class LineParser {
 
-  private static final MethodHandle UNSAFE_INVOKE_CLEANER;
-  private static final MethodHandle DIRECT_BYTE_BUFFER_CLEANER;
-  private static final MethodHandle CLEANER_CLEAN;
   // null if no VM support so make sure it's the argument to .equals()
   private static final Charset UTF_32;
   // null if no VM support so make sure it's the argument to .equals()
@@ -78,44 +69,6 @@ public final class LineParser {
   private static final long FILE_END = -1;
 
   static {
-    Lookup lookup = MethodHandles.publicLookup();
-    if (isJava9OrLater()) {
-      // Java 9 branch
-      // Unsafe.theUnsafe.invokeCleaner(byteBuffer)
-      try {
-        Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-        Field singleoneInstanceField = unsafeClass.getDeclaredField("theUnsafe");
-        if (!singleoneInstanceField.isAccessible()) {
-          singleoneInstanceField.setAccessible(true);
-        }
-        Object unsafe = singleoneInstanceField.get(null);
-
-        Method invokeCleaner = unsafeClass.getDeclaredMethod("invokeCleaner", ByteBuffer.class);
-        UNSAFE_INVOKE_CLEANER = lookup.unreflect(invokeCleaner).bindTo(unsafe);
-      } catch (ReflectiveOperationException e) {
-        throw new IllegalStateException("could not get invokeCleaner method handle", e);
-      }
-      DIRECT_BYTE_BUFFER_CLEANER = null;
-      CLEANER_CLEAN = null;
-    } else {
-      // Java 8 branch
-      // sun.misc.Cleaner cleaner = ((sun.nio.ch.DirectBuffer) buffer).cleaner();
-      // cleaner.clean();
-      try {
-        Class<?> bufferInterface = Class.forName("java.nio.DirectByteBuffer");
-        Method cleanerMethod = bufferInterface.getDeclaredMethod("cleaner");
-        if (!cleanerMethod.isAccessible()) {
-          cleanerMethod.setAccessible(true);
-        }
-        Class<?> cleanerClass = Class.forName("sun.misc.Cleaner");
-        Method cleanMethod = cleanerClass.getDeclaredMethod("clean"); // should be accessible
-        DIRECT_BYTE_BUFFER_CLEANER = lookup.unreflect(cleanerMethod);
-        CLEANER_CLEAN = lookup.unreflect(cleanMethod);
-      } catch (ReflectiveOperationException e) {
-        throw new IllegalStateException("could not get cleaner clean method handle", e);
-      }
-      UNSAFE_INVOKE_CLEANER = null;
-    }
 
     UTF_32 = safeLoadCharset("UTF-32");
     UTF_32BE = safeLoadCharset("UTF-32BE");
@@ -128,15 +81,6 @@ public final class LineParser {
     } catch (UnsupportedCharsetException e) {
       // minimal vm without extended charsets
       return null;
-    }
-  }
-
-  private static boolean isJava9OrLater() {
-    try {
-      Class.forName("java.lang.Runtime$Version");
-      return true;
-    } catch (ClassNotFoundException e) {
-      return false;
     }
   }
 
@@ -201,7 +145,7 @@ public final class LineParser {
         // normally unmapping happens in forEach() we when we get
         // an unchecked exceptio or error we need to do it here
       } catch (Error | RuntimeException e) {
-        unmap(buffer, fileInfo);
+        Unmapper.unmap(buffer, fileInfo);
         throw e;
       }
       Charset actualCharset = result.cs;
@@ -345,7 +289,7 @@ public final class LineParser {
       }
 
     } finally {
-      unmap(buffer, fileInfo);
+      Unmapper.unmap(buffer, fileInfo);
     }
     return FILE_END;
   }
@@ -443,7 +387,177 @@ public final class LineParser {
       }
 
     } finally {
-      unmap(buffer, fileInfo);
+      Unmapper.unmap(buffer, fileInfo);
+    }
+    return FILE_END;
+  }
+
+  // fast path version
+  // much simpler and inlines
+  private FirstLine parseFirstLine(FileInfo fileInfo, FastEncodingInfo encodingInfo, MappedByteBuffer buffer, long mapStart, int mapSize) throws IOException {
+    byte cr = encodingInfo.cr;
+    byte lf = encodingInfo.lf;
+    LineReader reader = fileInfo.reader;
+    Consumer<Line> lineCallback =  fileInfo.lineCallback;
+
+    int lineStart = 0; // in buffer
+
+    int mapIndex = 0;
+    while (mapIndex < mapSize) {
+      byte value = buffer.get(mapIndex);
+
+      if (value == cr) {
+        // check if lf follows the cr
+        // mapSize - mapIndex == buffer.remaining() + 1
+        FirstLine firstLine;
+        if (((mapSize - mapIndex) > 1) && (buffer.get(mapIndex + 1) == lf)) {
+          firstLine = FirstLine.crLf();
+        } else {
+          firstLine = FirstLine.singleChar('\r');
+        }
+
+        // we found the end, read the line
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+        return firstLine;
+
+      } else if (value == lf) {
+
+        // we found the end, read the line
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+        return FirstLine.singleChar('\r');
+      } else {
+        mapIndex += 1;
+      }
+
+    }
+
+    if ((mapIndex == mapSize) && ((mapStart + mapSize) == fileInfo.fileSize)) {
+      // the file is just a single line
+      return null;
+    } else {
+      // the line is longer than our map size
+      // bail out
+      throw new IOException("first line longer than " + mapSize + " bytes");
+    }
+  }
+
+  static final class FirstLine {
+
+    private static final FirstLine CR_LF = new FirstLine(true, (char) 0);
+    boolean crLf;
+    char newLine;
+
+    private FirstLine(boolean crLf, char newLine) {
+      this.crLf = crLf;
+      this.newLine = newLine;
+    }
+
+    static FirstLine crLf() {
+      return CR_LF;
+    }
+
+    static FirstLine singleChar(char newLine) {
+      return new FirstLine(false, newLine);
+    }
+
+
+  }
+
+  // fast path version
+  // much simpler and inlines
+  private long forEachFast(FileInfo fileInfo, char newLine, long mapStart) throws IOException {
+    FileChannel channel = fileInfo.channel;
+    long fileSize = fileInfo.fileSize;
+    LineReader reader = fileInfo.reader;
+    Consumer<Line> lineCallback =  fileInfo.lineCallback;
+    int mapSize = this.mapSize(fileInfo, mapStart);
+    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    try {
+
+      int lineStart = 0; // in buffer
+
+      int mapIndex = 0;
+      while (mapIndex < mapSize) {
+        byte value = buffer.get(mapIndex);
+
+        if (value == newLine) {
+          // we found the end, read the line
+          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+          // fix up loop variable for the next iteration
+          mapIndex = lineStart = mapIndex + 1;
+        } else {
+          mapIndex += 1;
+        }
+
+      }
+
+      if ((mapSize + mapStart) < fileSize) {
+        // we could not map the entire file
+        // map from the start of the last line
+        // and continue reading from there
+        return mapStart + lineStart; // may result in overlapping mapping
+      } else if (lineStart < mapSize) {
+        // we're at the end of the file
+        // if the last line didn't end in a newline read it now
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+      }
+
+    } finally {
+      Unmapper.unmap(buffer, fileInfo);
+    }
+    return FILE_END;
+  }
+
+  // fast path version
+  // much simpler and inlines
+  private long forEachFast(FileInfo fileInfo, byte cr, byte lf, long mapStart) throws IOException {
+    FileChannel channel = fileInfo.channel;
+    long fileSize = fileInfo.fileSize;
+    LineReader reader = fileInfo.reader;
+    Consumer<Line> lineCallback =  fileInfo.lineCallback;
+    int mapSize = this.mapSize(fileInfo, mapStart);
+    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    try {
+
+      int lineStart = 0; // in buffer
+
+      int mapIndex = 0;
+      while (mapIndex < mapSize) {
+        byte value = buffer.get(mapIndex);
+
+        if (value == cr) {
+          // check if lf follows the cr
+          // mapSize - mapIndex == buffer.remaining() + 1
+          if (((mapSize - mapIndex) > 1) && (buffer.get(mapIndex + 1) == lf)) {
+
+            // we found the end, read the line
+            readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+
+            // fix up loop variable for the next iteration
+            mapIndex = lineStart = mapIndex + 2;
+            continue;
+          }
+        }
+        mapIndex += 1;
+
+      }
+
+      if ((mapSize + mapStart) < fileSize) {
+        // we could not map the entire file
+        // map from the start of the last line
+        // and continue reading from there
+        return mapStart + lineStart; // may result in overlapping mapping
+      } else if (lineStart < mapSize) {
+        // we're at the end of the file
+        // if the last line didn't end in a newline read it now
+        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
+      }
+
+    } finally {
+      Unmapper.unmap(buffer, fileInfo);
     }
     return FILE_END;
   }
@@ -515,33 +629,6 @@ public final class LineParser {
       this.mapStart = mapStart;
     }
 
-  }
-
-  static void unmap(MappedByteBuffer buffer, FileInfo fileInfo) throws IOException {
-    if (UNSAFE_INVOKE_CLEANER != null) {
-      // Java 9
-      try {
-        UNSAFE_INVOKE_CLEANER.invokeExact((ByteBuffer) buffer);
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Error e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new UnmapFailedException(fileInfo.path.toString(), "could not unmap", e);
-      }
-    } else {
-      // Java 8
-      try {
-        Object cleaner = DIRECT_BYTE_BUFFER_CLEANER.invoke(buffer);
-        CLEANER_CLEAN.invoke(cleaner);
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Error e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new UnmapFailedException(fileInfo.path.toString(), "could not unmap", e);
-      }
-    }
   }
 
 }
