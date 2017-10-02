@@ -1,20 +1,20 @@
 package com.github.marschall.lineparser;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ByteBufferCharSequenceTest {
 
   private String string;
   private CharSequence sequence;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     this.string = "\u00DCber";
 

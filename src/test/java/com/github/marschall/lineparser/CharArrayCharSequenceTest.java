@@ -1,10 +1,10 @@
 package com.github.marschall.lineparser;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class CharArrayCharSequenceTest {
 
@@ -12,7 +12,7 @@ public class CharArrayCharSequenceTest {
   private CharSequence prefixSubSequence;
   private CharSequence subSequence;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     this.sequence = new CharArrayCharSequence(new char[] {'a', 'b', 'c'});
     this.prefixSubSequence = this.sequence.subSequence(0, 2);
