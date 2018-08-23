@@ -1,6 +1,6 @@
 package com.github.marschall.lineparser;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -10,59 +10,47 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@RunWith(Parameterized.class)
 public class LineParserTest {
 
-  private final Charset cs;
-  private final String newline;
-
-  public LineParserTest(Charset cs, String newline) {
-    this.cs = cs;
-    this.newline = newline;
+  public static Stream<Object[]> data() {
+      return Stream.of(
+                new Object[] { StandardCharsets.UTF_8, "\r\n" },
+                new Object[] { StandardCharsets.UTF_8, "\r" },
+                new Object[] { StandardCharsets.UTF_8, "\n" },
+                new Object[] { StandardCharsets.ISO_8859_1, "\r\n" },
+                new Object[] { StandardCharsets.ISO_8859_1, "\r" },
+                new Object[] { StandardCharsets.ISO_8859_1, "\n" },
+                new Object[] { StandardCharsets.UTF_16LE, "\r\n" },
+                new Object[] { StandardCharsets.UTF_16LE, "\r" },
+                new Object[] { StandardCharsets.UTF_16LE, "\n" }
+              );
   }
 
-  @Parameters
-  public static Iterable<Object[]> data() {
-      return Arrays.asList(
-              new Object[][] {
-                { StandardCharsets.UTF_8, "\r\n" },
-                { StandardCharsets.UTF_8, "\r" },
-                { StandardCharsets.UTF_8, "\n" },
-                { StandardCharsets.ISO_8859_1, "\r\n" },
-                { StandardCharsets.ISO_8859_1, "\r" },
-                { StandardCharsets.ISO_8859_1, "\n" },
-                { StandardCharsets.UTF_16LE, "\r\n" },
-                { StandardCharsets.UTF_16LE, "\r" },
-                { StandardCharsets.UTF_16LE, "\n" }
-              });
-  }
-
-  @Test
-  public void emptyLines() throws IOException {
+  @ParameterizedTest
+  @MethodSource("data")
+  public void emptyLines(Charset cs, String newline) throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
-    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
-      writer.append(this.newline);
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, cs)) {
+      writer.append(newline);
 
       writer.append("a");
 
-      writer.append(this.newline);
-      writer.append(this.newline);
+      writer.append(newline);
+      writer.append(newline);
 
       writer.append("bc");
 
-      writer.append(this.newline);
+      writer.append(newline);
 
       writer.append("d");
 
-      writer.append(this.newline);
+      writer.append(newline);
     }
     try {
       List<String> expected = readLinesBuffered(tempFile, cs);
@@ -75,14 +63,15 @@ public class LineParserTest {
     }
   }
 
-  @Test
-  public void noEmptyLines() throws IOException {
+  @ParameterizedTest
+  @MethodSource("data")
+  public void noEmptyLines(Charset cs, String newline) throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
-    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, cs)) {
       writer.append("a");
-      writer.append(this.newline);
+      writer.append(newline);
       writer.append("bc");
-      writer.append(this.newline);
+      writer.append(newline);
       writer.append("d");
     }
     try {
@@ -96,19 +85,20 @@ public class LineParserTest {
     }
   }
 
-  @Test
-  public void fileLargerThanMapped() throws IOException {
+  @ParameterizedTest
+  @MethodSource("data")
+  public void fileLargerThanMapped(Charset cs, String newline) throws IOException {
     int lineLength = 100;
     int lineCount = 10;
 
     Path tempFile = Files.createTempFile("LineParserTest", null);
-    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, cs)) {
       for (int i = 0; i < lineCount; i++) {
         char c = (char) ('A' + i);
         for (int j = 0; j < lineLength; j++) {
           writer.write(c);
         }
-        writer.append(this.newline);
+        writer.append(newline);
       }
     }
     try {
@@ -122,10 +112,11 @@ public class LineParserTest {
     }
   }
 
-  @Test
-  public void longLine() throws IOException {
+  @ParameterizedTest
+  @MethodSource("data")
+  public void longLine(Charset cs, String newline) throws IOException {
     Path tempFile = Files.createTempFile("LineParserTest", null);
-    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, this.cs)) {
+    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, cs)) {
       for (int i = 0; i < 8192; i++) {
         writer.append("a");
       }

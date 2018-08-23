@@ -2,7 +2,7 @@ package com.github.marschall.lineparser;
 
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class EncodingTest {
 
@@ -22,7 +22,7 @@ public class EncodingTest {
 
   private LineParser parser;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     this.parser = new LineParser();
   }
