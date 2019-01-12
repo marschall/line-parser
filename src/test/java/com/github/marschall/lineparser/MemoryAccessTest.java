@@ -17,8 +17,6 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
-import sun.nio.ch.DirectBuffer;
-
 public class MemoryAccessTest {
 
   @Test
@@ -37,25 +35,26 @@ public class MemoryAccessTest {
     }
   }
 
-  @Test
-  public void directAddress() throws IOException, ReflectiveOperationException {
-    Path tempFile = Files.createTempFile("MemoryAccessTest", null);
-    Files.write(tempFile, new byte[] {1, 2, 3});
-
-    try (FileInputStream stream = new FileInputStream(tempFile.toFile());
-            FileChannel channel = stream.getChannel()) {
-      MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, 3);
-      sun.nio.ch.DirectBuffer direct = (DirectBuffer) buffer;
-      long address = direct.address();
-      System.out.println(address);
-
-      sun.misc.Unsafe unsafe = (sun.misc.Unsafe) Unmapper.getTheUnsafe();
-      System.out.println(unsafe.getByte(address + 0));
-      System.out.println(unsafe.getByte(address + 1));
-      System.out.println(unsafe.getByte(address + 2));
-
-    }
-  }
+  // does not compile on 11
+//  @Test
+//  public void directAddress() throws IOException, ReflectiveOperationException {
+//    Path tempFile = Files.createTempFile("MemoryAccessTest", null);
+//    Files.write(tempFile, new byte[] {1, 2, 3});
+//
+//    try (FileInputStream stream = new FileInputStream(tempFile.toFile());
+//            FileChannel channel = stream.getChannel()) {
+//      MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, 0, 3);
+//      sun.nio.ch.DirectBuffer direct = (sun.nio.ch.DirectBuffer) buffer;
+//      long address = direct.address();
+//      System.out.println(address);
+//
+//      sun.misc.Unsafe unsafe = (sun.misc.Unsafe) Unmapper.getTheUnsafe();
+//      System.out.println(unsafe.getByte(address + 0));
+//      System.out.println(unsafe.getByte(address + 1));
+//      System.out.println(unsafe.getByte(address + 2));
+//
+//    }
+//  }
 
   @Test
   public void addressMethod() throws ReflectiveOperationException, IOException {
