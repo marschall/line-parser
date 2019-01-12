@@ -26,12 +26,8 @@ final class Unmapper {
       // Java 9 branch
       // Unsafe.theUnsafe.invokeCleaner(byteBuffer)
       try {
-        Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-        Field singleoneInstanceField = unsafeClass.getDeclaredField("theUnsafe");
-        if (!singleoneInstanceField.isAccessible()) {
-          singleoneInstanceField.setAccessible(true);
-        }
-        Object unsafe = singleoneInstanceField.get(null);
+        Class<?> unsafeClass = getUnsafeClass();
+        Object unsafe = getTheUnsafe(unsafeClass);
 
         Method invokeCleaner = unsafeClass.getDeclaredMethod("invokeCleaner", ByteBuffer.class);
         UNSAFE_INVOKE_CLEANER = lookup.unreflect(invokeCleaner).bindTo(unsafe);
@@ -59,6 +55,22 @@ final class Unmapper {
       }
       UNSAFE_INVOKE_CLEANER = null;
     }
+  }
+
+  private static Class<?> getUnsafeClass() throws ReflectiveOperationException {
+    return Class.forName("sun.misc.Unsafe");
+  }
+
+  private static Object getTheUnsafe(Class<?> unsafeClass) throws ReflectiveOperationException {
+    Field singleoneInstanceField = unsafeClass.getDeclaredField("theUnsafe");
+    if (!singleoneInstanceField.isAccessible()) {
+      singleoneInstanceField.setAccessible(true);
+    }
+    return singleoneInstanceField.get(null);
+  }
+
+  static Object getTheUnsafe() throws ReflectiveOperationException {
+    return getTheUnsafe(getUnsafeClass());
   }
 
   private static boolean isJava9OrLater() {
