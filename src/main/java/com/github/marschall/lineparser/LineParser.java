@@ -68,11 +68,15 @@ public final class LineParser {
 
   private static final long FILE_END = -1;
 
+  private static final MemoryAccessFactory FACTORY;
+
   static {
 
     UTF_32 = safeLoadCharset("UTF-32");
     UTF_32BE = safeLoadCharset("UTF-32BE");
     UTF_32LE = safeLoadCharset("UTF-32LE");
+
+    FACTORY = new MemoryAccessFactory();
   }
 
   private static Charset safeLoadCharset(String name) {
@@ -138,7 +142,8 @@ public final class LineParser {
     EncodingInfo actualEncodingInfo;
     MappedByteBuffer buffer;
     if (isAmbiguous(encodingInfo.cs)) {
-      buffer = this.map(fileInfo, mapStart);
+      int mapSize = this.mapSize(fileInfo, mapStart);
+      buffer = map(fileInfo, mapStart, mapSize);
       BomResolutionResult result;
       try {
         result = this.resolveBom(encodingInfo.cs, buffer);
@@ -165,9 +170,8 @@ public final class LineParser {
     }
   }
 
-  private MappedByteBuffer map(FileInfo fileInfo,  long mapStart) throws IOException {
+  private static MappedByteBuffer map(FileInfo fileInfo, long mapStart, int mapSize) throws IOException {
     FileChannel channel = fileInfo.channel;
-    int mapSize = this.mapSize(fileInfo, mapStart);
     return channel.map(MapMode.READ_ONLY, mapStart, mapSize);
   }
 
@@ -235,7 +239,7 @@ public final class LineParser {
       // so we pass the buffer to this method
       // in this case we already have a MappedByteBuffer for the first 2 GB
       // in all other cases we don't so we map now
-      buffer = this.map(fileInfo, mapStart);
+      buffer = map(fileInfo, mapStart, mapSize);
     }
     try {
 
@@ -330,14 +334,13 @@ public final class LineParser {
   // fast path version
   // much simpler and inlines
   private long forEachFast(FileInfo fileInfo, FastEncodingInfo encodingInfo, long mapStart) throws IOException {
-    FileChannel channel = fileInfo.channel;
     byte cr = encodingInfo.cr;
     byte lf = encodingInfo.lf;
     long fileSize = fileInfo.fileSize;
     LineReader reader = fileInfo.reader;
     Consumer<Line> lineCallback =  fileInfo.lineCallback;
     int mapSize = this.mapSize(fileInfo, mapStart);
-    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
+    MappedByteBuffer buffer = map(fileInfo, mapStart, mapSize);
     try {
 
       int lineStart = 0; // in buffer
@@ -392,57 +395,6 @@ public final class LineParser {
     return FILE_END;
   }
 
-  // fast path version
-  // much simpler and inlines
-  private FirstLine parseFirstLine(FileInfo fileInfo, FastEncodingInfo encodingInfo, MappedByteBuffer buffer, long mapStart, int mapSize) throws IOException {
-    byte cr = encodingInfo.cr;
-    byte lf = encodingInfo.lf;
-    LineReader reader = fileInfo.reader;
-    Consumer<Line> lineCallback =  fileInfo.lineCallback;
-
-    int lineStart = 0; // in buffer
-
-    int mapIndex = 0;
-    while (mapIndex < mapSize) {
-      byte value = buffer.get(mapIndex);
-
-      if (value == cr) {
-        // check if lf follows the cr
-        // mapSize - mapIndex == buffer.remaining() + 1
-        FirstLine firstLine;
-        if (((mapSize - mapIndex) > 1) && (buffer.get(mapIndex + 1) == lf)) {
-          firstLine = FirstLine.crLf();
-        } else {
-          firstLine = FirstLine.singleChar('\r');
-        }
-
-        // we found the end, read the line
-        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-
-        return firstLine;
-
-      } else if (value == lf) {
-
-        // we found the end, read the line
-        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-
-        return FirstLine.singleChar('\r');
-      } else {
-        mapIndex += 1;
-      }
-
-    }
-
-    if ((mapIndex == mapSize) && ((mapStart + mapSize) == fileInfo.fileSize)) {
-      // the file is just a single line
-      return null;
-    } else {
-      // the line is longer than our map size
-      // bail out
-      throw new IOException("first line longer than " + mapSize + " bytes");
-    }
-  }
-
   static final class FirstLine {
 
     private static final FirstLine CR_LF = new FirstLine(true, (char) 0);
@@ -463,103 +415,6 @@ public final class LineParser {
     }
 
 
-  }
-
-  // fast path version
-  // much simpler and inlines
-  private long forEachFast(FileInfo fileInfo, char newLine, long mapStart) throws IOException {
-    FileChannel channel = fileInfo.channel;
-    long fileSize = fileInfo.fileSize;
-    LineReader reader = fileInfo.reader;
-    Consumer<Line> lineCallback =  fileInfo.lineCallback;
-    int mapSize = this.mapSize(fileInfo, mapStart);
-    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
-    try {
-
-      int lineStart = 0; // in buffer
-
-      int mapIndex = 0;
-      while (mapIndex < mapSize) {
-        byte value = buffer.get(mapIndex);
-
-        if (value == newLine) {
-          // we found the end, read the line
-          readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-
-          // fix up loop variable for the next iteration
-          mapIndex = lineStart = mapIndex + 1;
-        } else {
-          mapIndex += 1;
-        }
-
-      }
-
-      if ((mapSize + mapStart) < fileSize) {
-        // we could not map the entire file
-        // map from the start of the last line
-        // and continue reading from there
-        return mapStart + lineStart; // may result in overlapping mapping
-      } else if (lineStart < mapSize) {
-        // we're at the end of the file
-        // if the last line didn't end in a newline read it now
-        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-      }
-
-    } finally {
-      Unmapper.unmap(buffer, fileInfo);
-    }
-    return FILE_END;
-  }
-
-  // fast path version
-  // much simpler and inlines
-  private long forEachFast(FileInfo fileInfo, byte cr, byte lf, long mapStart) throws IOException {
-    FileChannel channel = fileInfo.channel;
-    long fileSize = fileInfo.fileSize;
-    LineReader reader = fileInfo.reader;
-    Consumer<Line> lineCallback =  fileInfo.lineCallback;
-    int mapSize = this.mapSize(fileInfo, mapStart);
-    MappedByteBuffer buffer = channel.map(MapMode.READ_ONLY, mapStart, mapSize);
-    try {
-
-      int lineStart = 0; // in buffer
-
-      int mapIndex = 0;
-      while (mapIndex < mapSize) {
-        byte value = buffer.get(mapIndex);
-
-        if (value == cr) {
-          // check if lf follows the cr
-          // mapSize - mapIndex == buffer.remaining() + 1
-          if (((mapSize - mapIndex) > 1) && (buffer.get(mapIndex + 1) == lf)) {
-
-            // we found the end, read the line
-            readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-
-            // fix up loop variable for the next iteration
-            mapIndex = lineStart = mapIndex + 2;
-            continue;
-          }
-        }
-        mapIndex += 1;
-
-      }
-
-      if ((mapSize + mapStart) < fileSize) {
-        // we could not map the entire file
-        // map from the start of the last line
-        // and continue reading from there
-        return mapStart + lineStart; // may result in overlapping mapping
-      } else if (lineStart < mapSize) {
-        // we're at the end of the file
-        // if the last line didn't end in a newline read it now
-        readLine(lineStart, mapStart, mapIndex, buffer, reader, lineCallback);
-      }
-
-    } finally {
-      Unmapper.unmap(buffer, fileInfo);
-    }
-    return FILE_END;
   }
 
   private static void readLine(int lineStart, long mapStart, int mapIndex,
