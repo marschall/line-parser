@@ -68,15 +68,11 @@ public final class LineParser {
 
   private static final long FILE_END = -1;
 
-  private static final MemoryAccessFactory FACTORY;
-
   static {
 
     UTF_32 = safeLoadCharset("UTF-32");
     UTF_32BE = safeLoadCharset("UTF-32BE");
     UTF_32LE = safeLoadCharset("UTF-32LE");
-
-    FACTORY = new MemoryAccessFactory();
   }
 
   private static Charset safeLoadCharset(String name) {
