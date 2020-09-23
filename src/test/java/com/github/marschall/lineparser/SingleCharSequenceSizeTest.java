@@ -25,4 +25,16 @@ public class SingleCharSequenceSizeTest {
     assertEquals(24L, this.vm.sizeOf(sequence));
   }
 
+  @Test
+  public void testToString() {
+    CharSequence sequence = new SingleCharSequence('a');
+    assertEquals("a", sequence.toString());
+  }
+  
+  @Test
+  public void length() {
+    CharSequence sequence = new SingleCharSequence('a');
+    assertEquals(1, sequence.length());
+  }
+
 }

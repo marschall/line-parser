@@ -8,9 +8,13 @@ final class SingleCharSequence implements CharSequence {
     this.value = value;
   }
 
+  // default method in JDK 15+
+  public boolean isEmpty() {
+    return false;
+  }
+
   @Override
   public int length() {
-    // TODO Auto-generated method stub
     return 1;
   }
 
@@ -35,6 +39,11 @@ final class SingleCharSequence implements CharSequence {
     } else {
       throw new IndexOutOfBoundsException();
     }
+  }
+
+  @Override
+  public String toString() {
+    return Character.toString(this.value);
   }
 
 }
